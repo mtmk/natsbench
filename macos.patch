@@ -1,0 +1,29 @@
+diff --git a/src/NATS.Client.Core/Internal/TcpConnection.cs b/src/NATS.Client.Core/Internal/TcpConnection.cs
+index bf4e1c7..e5f8387 100644
+--- a/src/NATS.Client.Core/Internal/TcpConnection.cs
++++ b/src/NATS.Client.Core/Internal/TcpConnection.cs
+@@ -1,6 +1,7 @@
+-using System.Net.Security;
++﻿using System.Net.Security;
+ using System.Net.Sockets;
+ using System.Runtime.CompilerServices;
++using System.Runtime.InteropServices;
+ 
+ namespace NATS.Client.Core.Internal;
+ 
+@@ -27,8 +28,13 @@ internal sealed class TcpConnection : ISocketConnection
+         }
+ 
+         _socket.NoDelay = true;
+-        _socket.SendBufferSize = 0;
+-        _socket.ReceiveBufferSize = 0;
++
++        // MacOS doesn't support setting buffer sizes to zero
++        if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
++        {
++            _socket.SendBufferSize = 0;
++            _socket.ReceiveBufferSize = 0;
++        }
+     }
+ 
+     public Task<Exception> WaitForClosed => _waitForClosedSource.Task;

@@ -1,0 +1,63 @@
+diff --git a/src/NATS.Client.Core/Internal/SocketReader.cs b/src/NATS.Client.Core/Internal/SocketReader.cs
+index 16bd11b..04db02e 100644
+--- a/src/NATS.Client.Core/Internal/SocketReader.cs
++++ b/src/NATS.Client.Core/Internal/SocketReader.cs
+@@ -1,4 +1,4 @@
+-using System.Buffers;
++﻿using System.Buffers;
+ using System.Diagnostics;
+ using System.Runtime.CompilerServices;
+ using Microsoft.Extensions.Logging;
+@@ -70,7 +70,10 @@ internal sealed class SocketReader
+         }
+         while (totalRead < minimumSize);
+ 
+-        return _seqeunceBuilder.ToReadOnlySequence();
++        ReadOnlySequence<byte> s = _seqeunceBuilder.ToReadOnlySequence();
++        // XXX
++        Dumper.Dump("RX", s);
++        return s;
+     }
+ 
+     [AsyncMethodBuilder(typeof(PoolingAsyncValueTaskMethodBuilder<>))]
+@@ -119,7 +122,10 @@ internal sealed class SocketReader
+             }
+         }
+ 
+-        return _seqeunceBuilder.ToReadOnlySequence();
++        ReadOnlySequence<byte> s = _seqeunceBuilder.ToReadOnlySequence();
++        // XXX
++        Dumper.Dump("RX", s);
++        return s;
+     }
+ 
+     public void AdvanceTo(SequencePosition start)
+diff --git a/src/NATS.Client.Core/Internal/TcpConnection.cs b/src/NATS.Client.Core/Internal/TcpConnection.cs
+index bf4e1c7..e5f8387 100644
+--- a/src/NATS.Client.Core/Internal/TcpConnection.cs
++++ b/src/NATS.Client.Core/Internal/TcpConnection.cs
+@@ -1,6 +1,7 @@
+-using System.Net.Security;
++﻿using System.Net.Security;
+ using System.Net.Sockets;
+ using System.Runtime.CompilerServices;
++using System.Runtime.InteropServices;
+ 
+ namespace NATS.Client.Core.Internal;
+ 
+@@ -27,8 +28,13 @@ internal sealed class TcpConnection : ISocketConnection
+         }
+ 
+         _socket.NoDelay = true;
+-        _socket.SendBufferSize = 0;
+-        _socket.ReceiveBufferSize = 0;
++
++        // MacOS doesn't support setting buffer sizes to zero
++        if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
++        {
++            _socket.SendBufferSize = 0;
++            _socket.ReceiveBufferSize = 0;
++        }
+     }
+ 
+     public Task<Exception> WaitForClosed => _waitForClosedSource.Task;
