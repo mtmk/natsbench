@@ -1,4 +1,7 @@
-﻿using System.Net;
+﻿//
+// Simple NATS server implementation just implements PING
+//
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Channels;

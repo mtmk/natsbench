@@ -1,67 +1,57 @@
 ﻿using NATS.Client.Core;
 
 await using var connection = new NatsConnection();
+await connection.PingAsync();
 
-// Console.WriteLine("f1");
-//
-// byte[] array = {65,66,67};
-// var readOnlyMemory = new ReadOnlyMemory<byte>(array);
-//
-// NatsKey natsKey = new NatsKey("foo");
-//
-// await connection.PublishAsync(natsKey, readOnlyMemory);
-// Console.WriteLine("f2");
+Console.ReadLine();
 
-
-//
-// for (int i = 0; i < 100; i++)
-// {
-//     var timeSpan = await connection.PingAsync();
-//     Console.WriteLine(timeSpan);
-//     Console.ReadKey();
-// }
-//
-
-await connection.SubscribeAsync<string>("sub1", s =>
+Console.Error.WriteLine("SUB1======================================================");
+await connection.SubscribeAsync<byte[]>("foo", m=>
 {
-    //Console.WriteLine(s);
-}).ConfigureAwait(false);
-
-using var natsSubscriber = await connection.CreateSubscriberAsync<string>(new NatsSubscriberOptions
-{
-    Subject = "sub1"
-}).ConfigureAwait(false);
-
-Task.Run(async () =>
-{
-    await foreach (var message in natsSubscriber.Messages.ReadAllAsync().ConfigureAwait(false))
+    Console.Error.Write("[CALLBACK-1] RCV: ");
+    foreach (var b in m)
     {
-        Console.WriteLine($"SUB-NEW-{message}");
+        Console.Error.Write($"{b:X} ");
     }
+    Console.Error.WriteLine();
 });
 
-using NatsPublisher<string> natsPublisher = await connection.CreatePublisherAsync<string>(new NatsPublisherOptions
-{
-    Subject = "sub1"
-}).ConfigureAwait(false);
-await natsPublisher.PublishAsync("123").ConfigureAwait(false);
+Console.ReadLine();
 
+Console.Error.WriteLine("SUB2======================================================");
+await connection.SubscribeAsync<byte[]>("foo", m =>
+{
+    Console.Error.Write("[CALLBACK-2] RCV: ");
+    foreach (var b in m)
+    {
+        Console.Error.Write($"{b:X} ");
+    }
+    Console.Error.WriteLine();
+}).ConfigureAwait(false);
+
+byte[] array = { 65, 66, 67 };
+ReadOnlyMemory<byte> readOnlyMemory = new ReadOnlyMemory<byte>(array);
+NatsKey natsKey = new NatsKey("foo");
 for (int i = 0; i < 100; i++)
 {
-    await connection.PublishAsync("sub1", $"bla-{i}").ConfigureAwait(false);
-    await connection.PublishAsync(new NatsPubMsg<string>
-    {
-        Data = $"NEW-bla-{i}",
-        Subject = "sub1",
-    }).ConfigureAwait(false);
-    await natsPublisher.PublishAsync($"NEW-NEW-blah123-{i}").ConfigureAwait(false);
-    Console.ReadKey();
+    Console.Error.WriteLine("PUB=============================================");
+    await connection.PublishAsync(natsKey, readOnlyMemory);
+    Console.ReadLine();
 }
 
-//
-// Console.WriteLine("f3");
-// await connection.PublishAsync("foo", "bla2").ConfigureAwait(false);
-// Console.WriteLine("f4");
+
+for (int i = 0; i < 10; i++)
+{
+    var timeSpan = await connection.PingAsync();
+    Console.WriteLine($"ping:{timeSpan}");
+}
+
+for (int i = 0; i < 10; i++)
+{
+    await connection.PublishAsync("foo", $"bla-{i}").ConfigureAwait(false);
+}
+
+await connection.PublishAsync("foo", "bla2").ConfigureAwait(false);
 
 Console.ReadKey();
 
