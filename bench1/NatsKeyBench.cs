@@ -69,8 +69,8 @@ public class NatsKeyBench
     
     private int WriteString(string key)
     {
-        var count =  (int)Encoding.ASCII.GetBytes(key, _buffer);
-        _buffer.Clear();
+        var count =  (int)Encoding.ASCII.GetBytes(key, _buffer!);
+        _buffer!.Clear();
         return count;
     }
 }
