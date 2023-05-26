@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Formats.Asn1;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -159,8 +160,13 @@ public class NatsClient
         _stream.Close();
         _client.Close();
     }
+
+    public void LogLine(string? message) => Log("NA", message, true, "\n");
     
-    void Log(string name, string? message)
+    public void Log(string? message) => Log("NA", message, true, "");
+    
+    public void Log(string name, string? message) => Log(name, message, true, "\n");
+    public void Log(string name, string? message, bool tag, string suffix)
     {
         if (!_logCtrl
             && message != null
@@ -181,7 +187,11 @@ public class NatsClient
                     "TX" => ConsoleColor.Yellow,
                     _ => Console.ForegroundColor
                 };
-                Console.Error.WriteLine($"[{name}] {message}");
+                
+                if (tag)
+                    Console.Out.Write($"[{name}] {message}{suffix}");
+                else
+                    Console.Out.Write($"{message}{suffix}");
             }
             finally
             {
@@ -204,13 +214,13 @@ public class NatsClient
         _sw.Flush();
     }
 
-    public void Sub(string subject, string queueGroup, Action<Msg> action)
+    public int Sub(string subject, string queueGroup, Action<Msg> action)
     {
-        _sid++;
-        SendLine($"SUB {subject} {queueGroup} {_sid}");
+        var sid = Interlocked.Increment(ref _sid);
+        SendLine($"SUB {subject} {queueGroup} {sid}");
         var channel = Channel.CreateUnbounded<Msg>();
         ChannelWriter<Msg> writer = channel.Writer;
-        _writers[_sid] = writer;
+        _writers[sid] = writer;
         Task.Run(async delegate
         {
             await foreach (var msg in channel.Reader.ReadAllAsync())
@@ -218,12 +228,12 @@ public class NatsClient
                 action(msg);
             }
         });
+        return sid;
     }
 
-    public void UnSub(string sid, int? max)
+    public void UnSub(int sid, int? max)
     {
         SendLine($"UNSUB {sid} {max}");
-        var key = int.Parse(sid);
     }
 
     public void Pub(string subject, string replyTo, string payload)
