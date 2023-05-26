@@ -102,7 +102,7 @@ bool NatsProtoDump(string dir, StreamReader sr, StreamWriter sw)
         return true;
     }
 
-    Console.WriteLine($"ERROR: Unknown protocol: {line}");
+    Console.WriteLine($"Error: Unknown protocol: {line}");
 
     return false;
 }
