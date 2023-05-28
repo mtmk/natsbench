@@ -91,7 +91,7 @@ public class NatsClient
                     }
 
                     var payload = new string(buffer.AsSpan()[..size]);
-                    Log("RX", payload);
+                    Log("RX", payload, noTagIndent:true);
                     var msg = new Msg
                     {
                         Subject = subject,
@@ -121,7 +121,7 @@ public class NatsClient
                         if (header == null) throw new Exception("HMSG HEADERS ERR");;
                         if (header == string.Empty) break;
                         headers.Add(header);
-                        Log("RX", header);
+                        Log("RX", header, noTagIndent:true);
                     }
 
                     var buffer = new char[size - headersSize + 2];
@@ -135,7 +135,7 @@ public class NatsClient
                     }
 
                     var payload = new string(buffer.AsSpan()[..(size - headersSize)]);
-                    Log("RX", payload);
+                    Log("RX", payload, noTagIndent:true);
                     var msg = new Msg
                     {
                         Subject = subject,
@@ -161,12 +161,12 @@ public class NatsClient
         _client.Close();
     }
 
-    public void LogLine(string? message) => Log("NA", message, true, "\n");
+    public void LogLine(string? message) => Log("NA", message, false, "\n", false);
     
-    public void Log(string? message) => Log("NA", message, true, "");
+    public void Log(string? message) => Log("NA", message, false, "", false);
     
-    public void Log(string name, string? message) => Log(name, message, true, "\n");
-    public void Log(string name, string? message, bool tag, string suffix)
+    public void Log(string name, string? message, bool noTagIndent = false) => Log(name, message, true, "\n", noTagIndent);
+    public void Log(string name, string? message, bool tag, string suffix, bool noTagIndent)
     {
         if (!_logCtrl
             && message != null
@@ -185,13 +185,25 @@ public class NatsClient
                     "ii" => ConsoleColor.DarkGray,
                     "RX" => ConsoleColor.Green,
                     "TX" => ConsoleColor.Yellow,
-                    _ => Console.ForegroundColor
+                    _ => color
                 };
-                
+
                 if (tag)
-                    Console.Out.Write($"[{name}] {message}{suffix}");
+                {
+                    if (noTagIndent)
+                    {
+                        //                $"mm:ss.fff [XX] xxxx
+                        Console.Out.Write($"               {message}{suffix}");
+                    }
+                    else
+                    {
+                        Console.Out.Write($"{DateTime.Now:mm:ss.fff} [{name}] {message}{suffix}");
+                    }
+                }
                 else
+                {
                     Console.Out.Write($"{message}{suffix}");
+                }
             }
             finally
             {
@@ -214,6 +226,11 @@ public class NatsClient
         _sw.Flush();
     }
 
+    public void Ping()
+    {
+        SendLine("PING");
+    }
+    
     public int Sub(string subject, string queueGroup, Action<Msg> action)
     {
         var sid = Interlocked.Increment(ref _sid);
@@ -277,6 +294,8 @@ public class NatsClient
         SendLine(payload);
     }
 
+    public bool Ctrl => _logCtrl;
+    
     public void CtrlOn() => _logCtrl = true;
     
     public void CtrlOff() => _logCtrl = false;

@@ -6,37 +6,65 @@ public class Program
 {
     static void Main()
     {
+        Console.WriteLine("");
+        Console.WriteLine("NATS client playground");
+        Console.WriteLine("");
+
         var natsClient = NatsClient.Connect();
 
         void Print(string message) => natsClient?.Log(message);
         
         void Println(string message) => natsClient?.LogLine(message);
         
+        bool prompt = false;
+        bool display = true;
         while (true)
         {
-            Print("> ");
+            if (prompt)
+            {
+                Print("> ");
+            }
+
+            prompt = false;
+            
             var cmd = Console.ReadLine();
             
             if (cmd == null || cmd.StartsWith("q")) break;
-            
-            if (Regex.IsMatch(cmd, @"^\s*$")) continue;
+
+            if (Regex.IsMatch(cmd, @"^\s*$"))
+            {
+                prompt = true;
+                continue;
+            }
 
             if (Regex.IsMatch(cmd, @"^\s*(?:\?|h|help)\s*$"))
             {
+                Println("");
+                Println("NATS client playground");
+                Println("");
                 Println("sub  <subject> [queue-group]                   subscribe");
                 Println("     e.g. sub foo bar");
                 Println("          sub foo");
+                Println("");
                 Println("unsub <sid> [max-msg]                          unsubscribe");
                 Println("     e.g. unsub 1");
                 Println("          unsub 1 10");
+                Println("");
                 Println("pub  <subject> [reply-to] <payload>            publish");
                 Println("     e.g. pub foo bar my_msg");
                 Println("          pub foo my_msg");
+                Println("");
                 Println("hpub <subject> [reply-to] <payload> <headers>  publish with headers");
                 Println("     e.g. hpub foo bar my_msg A:1,B:2");
                 Println("          hpub foo my_msg A:1,B:2");
+                Println("");
                 Println("ctrl <on|off>                                  control message log");
+                Println("");
+                Println("display <on|off>                               application message log");
+                Println("");
                 Println("help                                           this message");
+                Println("");
+                Println($"ctrl:{natsClient.Ctrl} display:{display}");
             }
             else if (Regex.IsMatch(cmd, @"^\s*ctrl\s+on\s*$"))
             {
@@ -45,6 +73,18 @@ public class Program
             else if (Regex.IsMatch(cmd, @"^\s*ctrl\s+off\s*$"))
             {
                 natsClient.CtrlOff();
+            }
+            else if (Regex.IsMatch(cmd, @"^\s*display\s+on\s*$"))
+            {
+                display = true;
+            }
+            else if (Regex.IsMatch(cmd, @"^\s*display\s+off\s*$"))
+            {
+                display = false;
+            }
+            else if (cmd.StartsWith("ping"))
+            {
+                natsClient.Ping();
             }
             else if (cmd.StartsWith("pub"))
             {
@@ -76,7 +116,11 @@ public class Program
                 Println($"Subscribe to {subject}");
                 var sid = natsClient.Sub(subject, queueGroup, m =>
                 {
-                    Println($"Message received ({queueGroup}): {m}");
+                    if (display)
+                    {
+                        Println($"Message received ({queueGroup}): {m}");
+                    }
+                    
                     if (!string.IsNullOrEmpty(m.ReplyTo))
                     {
                         natsClient.Pub(m.ReplyTo, "", $"Got your message '{m.Payload}'");
