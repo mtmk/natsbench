@@ -1,11 +1,27 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Buffers;
+using System.Diagnostics;
+using System.Diagnostics.Tracing;
+using System.Text.RegularExpressions;
+using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Running;
 
 namespace client1;
 
 public class Program
 {
-    static void Main()
+    static void Main(string[] args)
     {
+        if (args.Length > 0 && args[0] == "bench1")
+        {
+            Bench1(args.Skip(1).ToArray());
+            return;
+        }
+        if (args.Length > 0 && args[0] == "bench2")
+        {
+            Bench2(args.Skip(1).ToArray());
+            return;
+        }
+        
         Console.WriteLine("");
         Console.WriteLine("NATS client playground");
         Console.WriteLine("");
@@ -146,5 +162,82 @@ public class Program
         }
         
         natsClient.Close();
+    }
+    
+    private static void Bench1(string[] args)
+    {
+        Console.WriteLine("Starting bench...");
+        
+        var nats = NatsClient.Connect();
+        var signal = new ManualResetEventSlim();
+
+        var count = 0;
+        var stopwatch = Stopwatch.StartNew();
+        
+        nats.Sub("foo", "", m =>
+        {
+            Interlocked.Increment(ref count);
+            //Console.WriteLine($"[RCV] {m}");
+            signal.Set();
+        });
+
+        var message = "my_message";
+        for (int i = 0; i < 100_000; i++)
+        {
+            nats.Pub("foo", "", message);
+            signal.Wait();
+            signal.Reset();
+        }
+        
+        Console.WriteLine($"count:{Volatile.Read(ref count)}");
+        Console.WriteLine($"{stopwatch.Elapsed}");
+    }
+
+    private static void Bench2(string[] args)
+    {
+        var report = BenchmarkRunner.Run<NatsBench>();
+        foreach (var r in report.Reports)
+        {
+            Console.WriteLine($"Report");
+            Console.WriteLine($"BytesAllocatedPerOperation:{r.GcStats.GetBytesAllocatedPerOperation(r.BenchmarkCase)}");
+            Console.WriteLine($"GEN0:{r.GcStats.Gen0Collections}");
+            Console.WriteLine($"GEN1:{r.GcStats.Gen1Collections}");
+            Console.WriteLine($"GEN2:{r.GcStats.Gen2Collections}");
+        }
+    }
+}
+
+[MemoryDiagnoser]
+public class NatsBench
+{ 
+    private NatsClient _nats;
+    private ManualResetEventSlim _signal;
+    private int _count;
+    private string _message;
+
+    [GlobalSetup]
+    public void Setup()
+    {
+        _nats = NatsClient.Connect();
+        _signal = new ManualResetEventSlim();
+
+        _count = 0;
+        
+        _nats.Sub("foo", "", m =>
+        {
+            Interlocked.Increment(ref _count);
+            _signal.Set();
+        });
+
+        _message = "my_message";
+    }
+    
+    [Benchmark]
+    public int PubSub()
+    {
+        _nats.Pub("foo", "", _message);
+        _signal.Wait();
+        _signal.Reset();
+        return Volatile.Read(ref _count);
     }
 }

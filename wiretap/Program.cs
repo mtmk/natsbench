@@ -48,8 +48,9 @@ bool NatsProtoDump(string dir, StreamReader sr, StreamWriter sw)
     if (Regex.IsMatch(line, @"^(INFO|CONNECT|PING|PONG|UNSUB|SUB|\+OK|-ERR)"))
     {
         // Ignore control messages
-        if (!Regex.IsMatch(line, @"^(INFO|CONNECT|PING|PONG|\+OK)"))
-            Console.WriteLine($"{dir} {line}");
+        // if (!Regex.IsMatch(line, @"^(INFO|CONNECT|PING|PONG|\+OK)"))
+        Console.WriteLine($"{dir} {line}");
+        
         sw.WriteLine(line);
         sw.Flush();
         return true;

@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Formats.Asn1;
 using System.Net.Sockets;
 using System.Text;
@@ -161,11 +162,16 @@ public class NatsClient
         _client.Close();
     }
 
+    [Conditional("DEBUG")]
     public void LogLine(string? message) => Log("NA", message, false, "\n", false);
     
+    [Conditional("DEBUG")]
     public void Log(string? message) => Log("NA", message, false, "", false);
     
+    [Conditional("DEBUG")]
     public void Log(string name, string? message, bool noTagIndent = false) => Log(name, message, true, "\n", noTagIndent);
+    
+    [Conditional("DEBUG")]
     public void Log(string name, string? message, bool tag, string suffix, bool noTagIndent)
     {
         if (!_logCtrl

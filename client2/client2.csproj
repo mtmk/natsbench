@@ -8,11 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="BenchmarkDotNet" Version="0.13.5" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <ProjectReference Include="..\..\nats.net.v2\src\NATS.Client.Core\NATS.Client.Core.csproj" />
+      <PackageReference Include="System.IO.Pipelines" Version="7.0.0" />
     </ItemGroup>
 
 </Project>
