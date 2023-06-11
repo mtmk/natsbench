@@ -1,0 +1,33 @@
+name: test2
+
+on:
+  push: {}
+
+jobs:
+
+  build:
+
+    strategy:
+      matrix:
+        config:
+          - os: windows-latest
+          - os: ubuntu-latest
+          - os: macos-latest
+
+    runs-on: ${{ matrix.config.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: install dotnet
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 6.0.x
+
+      - name: test
+        run: |
+          cd test2
+          dotnet test
