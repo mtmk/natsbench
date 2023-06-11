@@ -64,7 +64,7 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v3
       with:
-        fetch-depth: 0
+        fetch-depth: 0       
 
     # Install the .NET Core workload
     - name: Install .NET Core

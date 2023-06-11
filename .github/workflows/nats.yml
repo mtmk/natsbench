@@ -1,0 +1,46 @@
+name: nats
+
+on: push
+
+jobs:
+
+  build:
+
+    strategy:
+      matrix:
+        config:
+          - os: windows-latest
+#          - os: ubuntu-latest
+#          - os: macos-latest
+
+    runs-on: ${{ matrix.config.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: install dotnet
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 6.0.x
+
+      - name: info linux
+        if: ${{ matrix.config.os == 'ubuntu-latest' }}
+        run: cat /etc/os-release
+        
+      - name: info windows
+        if: ${{ matrix.config.os == 'windows-latest' }}
+        run: |
+          Invoke-WebRequest https://github.com/nats-io/nats-server/releases/download/v2.9.17/nats-server-v2.9.17-windows-amd64.zip -OutFile nats-server.zip
+          Expand-Archive nats-server.zip
+          $current_path = (Get-Item .).FullName
+          echo "$current_path\nats-server" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        
+      - name: info macos
+        if: ${{ matrix.config.os == 'macos-latest' }}
+        run: system_profiler SPSoftwareDataType SPHardwareDataType
+        
+      - name: test
+        run: dotnet test nats/nats.net.v2/tests/NATS.Client.Core.Tests

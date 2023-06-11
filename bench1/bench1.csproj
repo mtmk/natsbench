@@ -12,7 +12,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\nats.net.v2\src\NATS.Client.Core\NATS.Client.Core.csproj" />
+      <ProjectReference Include="..\nats\nats.net.v2\src\NATS.Client.Core\NATS.Client.Core.csproj" />
     </ItemGroup>
 
 </Project>
