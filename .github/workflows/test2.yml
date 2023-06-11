@@ -43,8 +43,11 @@ jobs:
       - name: info macos
         if: ${{ matrix.config.os == 'macos-latest' }}
         run: system_profiler SPSoftwareDataType SPHardwareDataType
-        
+
+      - name: build
+        run:  dotnet build --p:WarningLevel=0
+
       - name: test
         run: |
           cd test2
-          dotnet test
+          dotnet test --no-build

@@ -82,11 +82,9 @@ jobs:
         $current_path = (Get-Item .).FullName
         echo "$current_path\NUnit.ConsoleRunner.3.16.3\tools" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
         echo "$current_path\dotMemoryUnit" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-        
-    - name: Build
-      run: |
-        cd test1
-        dotnet build
+
+    - name: build
+      run:  dotnet build --p:WarningLevel=0
 
     - name: dotmemoryunit
       run: dotMemoryUnit .\NUnit.ConsoleRunner.3.16.3\tools\nunit3-console.exe --propagate-exit-code -- .\test1\bin\Debug\net6.0\test1.dll

@@ -54,6 +54,9 @@ jobs:
 
       - name: nats-server
         run: nats-server -v
+      
+      - name: build
+        run:  dotnet build --p:WarningLevel=0
         
       - name: test
-        run: dotnet test nats/nats.net.v2/tests/NATS.Client.Core.Tests
+        run: dotnet test --no-build nats/nats.net.v2/tests/NATS.Client.Core.Tests
