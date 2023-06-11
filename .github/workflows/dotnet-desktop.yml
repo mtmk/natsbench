@@ -83,7 +83,9 @@ jobs:
         echo "$current_path\dotMemoryUnit" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
         
     - name: Build
-      run: dotnet build
+      run: |
+        cd test1
+        dotnet build
 
     - name: dotmemoryunit
       run: dotMemoryUnit nunit3-console .\test1\bin\Debug\net6.0\test1.dll
