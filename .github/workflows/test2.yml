@@ -3,7 +3,9 @@ name: test2
 
 # https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions
 
-on: push
+on: workflow_dispatch
+#on: push
+
 
 jobs:
 

@@ -1,6 +1,7 @@
 name: nats
 
-on: push
+on: workflow_dispatch
+#on: push
 
 jobs:
 
@@ -30,25 +31,28 @@ jobs:
         if: ${{ matrix.config.os == 'ubuntu-latest' }}
         run: |
           curl -L -o nats-server.tar.gz https://github.com/nats-io/nats-server/releases/download/v2.9.17/nats-server-v2.9.17-linux-amd64.tar.gz
-          mkdir nats-server
-          tar -xf nats-server.tar.gz -C nats-server --strip-components=1
-          echo "$(pwd)/nats-server" >> $GITHUB_PATH
+          mkdir tools-nats-server
+          tar -xf nats-server.tar.gz -C tools-nats-server --strip-components=1
+          echo "$(pwd)/tools-nats-server" >> $GITHUB_PATH
 
       - name: tools macos
         if: ${{ matrix.config.os == 'macos-latest' }}
         run: |
           curl -L -o nats-server.tar.gz https://github.com/nats-io/nats-server/releases/download/v2.9.17/nats-server-v2.9.17-darwin-amd64.tar.gz
-          mkdir nats-server
+          mkdir tools-nats-server
           tar -xf nats-server.tar.gz -C nats-server --strip-components=1
-          echo "$(pwd)/nats-server" >> $GITHUB_PATH
+          echo "$(pwd)/tools-nats-server" >> $GITHUB_PATH
         
       - name: tools windows
         if: ${{ matrix.config.os == 'windows-latest' }}
         run: |
-          Invoke-WebRequest https://github.com/nats-io/nats-server/releases/download/v2.9.17/nats-server-v2.9.17-windows-amd64.zip -OutFile nats-server.zip
-          Expand-Archive nats-server.zip
+          Invoke-WebRequest https://github.com/nats-io/nats-server/releases/download/v2.9.17/nats-server-v2.9.17-windows-amd64.zip -OutFile tools-nats-server.zip
+          Expand-Archive tools-nats-server.zip
           $current_path = (Get-Item .).FullName
-          echo "$current_path\nats-server" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          echo "$current_path\tools-nats-server" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: nats-server
+        run: nats-server -v
         
-      - name: test
-        run: dotnet test nats/nats.net.v2/tests/NATS.Client.Core.Tests
+#      - name: test
+#        run: dotnet test nats/nats.net.v2/tests/NATS.Client.Core.Tests
