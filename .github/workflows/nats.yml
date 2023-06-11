@@ -26,15 +26,23 @@ jobs:
         with:
           dotnet-version: 6.0.x
 
-      - name: info linux
-        if: ${{ matrix.config.os == 'ubuntu-latest' || matrix.config.os == 'macos-latest' }}
+      - name: tools linux
+        if: ${{ matrix.config.os == 'ubuntu-latest' }}
         run: |
           curl -L -o nats-server.tar.gz https://github.com/nats-io/nats-server/releases/download/v2.9.17/nats-server-v2.9.17-linux-amd64.tar.gz
           mkdir nats-server
           tar -xf nats-server.tar.gz -C nats-server --strip-components=1
           echo "$(pwd)/nats-server" >> $GITHUB_PATH
+
+      - name: tools macos
+        if: ${{ matrix.config.os == 'macos-latest' }}
+        run: |
+          curl -L -o nats-server.tar.gz https://github.com/nats-io/nats-server/releases/download/v2.9.17/nats-server-v2.9.17-darwin-amd64.tar.gz
+          mkdir nats-server
+          tar -xf nats-server.tar.gz -C nats-server --strip-components=1
+          echo "$(pwd)/nats-server" >> $GITHUB_PATH
         
-      - name: info windows
+      - name: tools windows
         if: ${{ matrix.config.os == 'windows-latest' }}
         run: |
           Invoke-WebRequest https://github.com/nats-io/nats-server/releases/download/v2.9.17/nats-server-v2.9.17-windows-amd64.zip -OutFile nats-server.zip

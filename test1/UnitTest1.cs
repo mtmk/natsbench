@@ -12,6 +12,9 @@ public class Tests
     [Test]
     public void Test1()
     {
+        // https://www.jetbrains.com/dotmemory/unit/
+        // https://blog.jetbrains.com/dotnet/2018/10/04/unit-testing-memory-leaks-using-dotmemory-unit/
+        
         void Isolator()
         {
             var myObject = new MyClass(this);

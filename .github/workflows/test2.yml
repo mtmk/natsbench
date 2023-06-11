@@ -1,4 +1,7 @@
+---
 name: test2
+
+# https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions
 
 on: push
 
@@ -6,6 +9,7 @@ jobs:
 
   build:
 
+    # https://radu-matei.com/blog/github-action-cross-plat-configure-tools/
     strategy:
       matrix:
         config:
