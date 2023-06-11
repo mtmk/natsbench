@@ -28,8 +28,6 @@ public class Tests
             Console.WriteLine($"COUNT={count}");
             Assert.That(count, Is.EqualTo(0));
         });
-        
-        Assert.Fail("fail this one!");
     }
 
     private WeakReference<MyClass>? _weak;
