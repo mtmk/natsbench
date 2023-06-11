@@ -18,9 +18,3 @@ robocopy ..\..\nats.net.v2\src\NATS.Client.Core nats.net.v2\src\NATS.Client.Core
 
 robocopy ..\..\nats.net.v2\tests\NATS.Client.Core.Tests nats.net.v2\tests\NATS.Client.Core.Tests -mir -xd bin obj
 @if %errorlevel% geq 8 exit /b %errorlevel%
-
-xcopy ..\..\nats.net.v2\Directory.Build.props nats.net.v2\
-@if %errorlevel% neq 0 exit /b %errorlevel%
-
-xcopy ..\..\nats.net.v2\opensource.snk nats.net.v2\
-@if %errorlevel% neq 0 exit /b %errorlevel%

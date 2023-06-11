@@ -28,6 +28,9 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "test2", "test2\test2.csproj", "{46C538C4-DCAD-4475-9678-47024DB38320}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "nats", "nats", "{8670B72D-186A-4BB9-B545-2BB84BD9445E}"
+	ProjectSection(SolutionItems) = preProject
+		nats\Directory.Build.props = nats\Directory.Build.props
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".github", ".github", "{B3CCFF33-B33D-45E4-AEE1-778D5A2347D1}"
 EndProject
@@ -41,6 +44,13 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NATS.Client.Core", "nats\nats.net.v2\src\NATS.Client.Core\NATS.Client.Core.csproj", "{8A9C3E5A-E722-4053-AB7C-E49D9EDE9A6E}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NATS.Client.Core.Tests", "nats\nats.net.v2\tests\NATS.Client.Core.Tests\NATS.Client.Core.Tests.csproj", "{2B3E2785-6649-42D3-AF29-796E39A3A869}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".", ".", "{A84A5100-74F8-436F-8927-A41E5FB5E5C1}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+		sync_nats.bat = sync_nats.bat
+		Directory.Build.props = Directory.Build.props
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
