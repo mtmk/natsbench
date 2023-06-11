@@ -74,13 +74,13 @@ jobs:
 
     - name: Get tools
       run: |
-        wget https://dist.nuget.org/win-x86-commandline/latest/nuget.exe
+        Invoke-WebRequest https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -OutFile nuget.exe
+        Invoke-WebRequest https://download.jetbrains.com/resharper/JetBrains.dotMemoryUnit.3.2.20220510.zip -OutFile dotMemoryUnit.zip
+        Expand-Archive dotMemoryUnit.zip
         nuget install NUnit.ConsoleRunner -version 3.16.3
-        wget https://download.jetbrains.com/resharper/JetBrains.dotMemoryUnit.3.2.20220510.zip
-        Expand-Archive JetBrains.dotMemoryUnit.3.2.20220510.zip
         $current_path = (Get-Item .).FullName
         echo "$current_path\NUnit.ConsoleRunner.3.16.3\tools" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-        echo "$current_path\JetBrains.dotMemoryUnit.3.2.20220510" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        echo "$current_path\dotMemoryUnit" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
         
     - name: Build
       run: dotnet build
