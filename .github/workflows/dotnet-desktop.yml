@@ -88,4 +88,4 @@ jobs:
         dotnet build
 
     - name: dotmemoryunit
-      run: dotMemoryUnit nunit3-console .\test1\bin\Debug\net6.0\test1.dll
+      run: dotMemoryUnit .\NUnit.ConsoleRunner.3.16.3\tools\nunit3-console.exe .\test1\bin\Debug\net6.0\test1.dll
