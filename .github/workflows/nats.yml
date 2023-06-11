@@ -54,5 +54,5 @@ jobs:
       - name: nats-server
         run: nats-server -v
         
-#      - name: test
-#        run: dotnet test nats/nats.net.v2/tests/NATS.Client.Core.Tests
+      - name: test
+        run: dotnet test nats/nats.net.v2/tests/NATS.Client.Core.Tests
