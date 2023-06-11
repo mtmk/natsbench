@@ -30,7 +30,29 @@ public class Tests
         });
     }
 
-    public MyClass MyObj { get; set; }
+    private WeakReference<MyClass>? _weak;
+
+    public MyClass? MyObj
+    {
+        get
+        {
+            if (_weak.TryGetTarget(out var target))
+            {
+                return target;
+            }
+
+            return null;
+        }
+        set
+        {
+            if (value == null)
+            {
+                _weak = null;
+                return;
+            }
+            _weak = new WeakReference<MyClass>(value);
+        }
+    }
 }
 
 public class MyClass
