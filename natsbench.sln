@@ -50,6 +50,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".", ".", "{A84A5100-74F8-43
 		README.md = README.md
 		sync_nats.bat = sync_nats.bat
 		Directory.Build.props = Directory.Build.props
+		dump.patch = dump.patch
+		Dumper.cs = Dumper.cs
+		macos.patch = macos.patch
+		X.cs = X.cs
 	EndProjectSection
 EndProject
 Global
