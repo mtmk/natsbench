@@ -1,4 +1,12 @@
 ﻿Console.WriteLine("Hi!");
+
+var s = new SemaphoreSlim(-1, 3);
+
+Task.Run(() => s.Release());
+Console.WriteLine("s.wait");
+s.Wait();
+Console.WriteLine("bye");
+
 // using NATS.Client.Core;
 //
 // await using var connection = new NatsConnection();

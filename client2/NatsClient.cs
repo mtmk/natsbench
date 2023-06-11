@@ -2,6 +2,7 @@
 using System.IO.Pipelines;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace client2;
 
@@ -80,15 +81,52 @@ class NatsClient
 
         Task.Run(async () =>
         {
+            var state = 1;
+            var size = 0;
+            var lineStr = String.Empty;
+            var sub = "SUB foo 1\r\n";
+            
             while (true)
             {
                 ReadResult result = await _reader.ReadAsync();
                 ReadOnlySequence<byte> buffer = result.Buffer;
 
-                while (TryReadLine(ref buffer, out ReadOnlySequence<byte> line))
+                if (state == 1 && TryReadLine(ref buffer, out ReadOnlySequence<byte> line))
                 {
                     // Process the line.
-                    await ProcessLine(line);
+                    var cmd = ProcessLine(ref buffer, line, out lineStr);
+                    if (cmd == 1)
+                    {
+                        var memory = new ReadOnlyMemory<byte>(Encoding.ASCII.GetBytes("CONNECT {}\r\n"));
+                        while (memory.Length != 0)
+                        {
+                            var sent = await _socket.SendAsync(memory, SocketFlags.None, CancellationToken.None)
+                                .ConfigureAwait(false);
+                            memory = memory.Slice(sent);
+                        }
+                    }
+                    else if (cmd == 2)
+                    {
+                        var memory = new ReadOnlyMemory<byte>(Encoding.ASCII.GetBytes($"PONG\r\n{sub}"));
+                        sub = string.Empty;
+                        while (memory.Length != 0)
+                        {
+                            var sent = await _socket.SendAsync(memory, SocketFlags.None, CancellationToken.None)
+                                .ConfigureAwait(false);
+                            memory = memory.Slice(sent);
+                        }
+                    }
+                    else if (cmd == 3)
+                    {
+                        state = 2;
+                        size = int.Parse(Regex.Match(lineStr, @"(\d+)$").Groups[1].Value) + 2; // 2=CRLF
+                        Console.WriteLine($"MSG SIZE={size}");
+                    }
+                }
+                else if (state == 2 && TryReadPayload(ref buffer, out var payload, size))
+                {
+                    Console.WriteLine(Encoding.ASCII.GetString(payload));
+                    state = 1;
                 }
 
                 // Tell the PipeReader how much of the buffer has been consumed.
@@ -108,7 +146,7 @@ class NatsClient
         return this;
     }
 
-    private async Task ProcessLine(ReadOnlySequence<byte> line)
+    private int ProcessLine(ref ReadOnlySequence<byte> buffer, ReadOnlySequence<byte> line, out string lineStr)
     {
         try
         {
@@ -117,30 +155,29 @@ class NatsClient
 
             if (s.StartsWith("INFO"))
             {
-                var memory = new ReadOnlyMemory<byte>(Encoding.ASCII.GetBytes("CONNECT {}\r\n"));
-                while (memory.Length != 0)
-                {
-                    var sent = await _socket.SendAsync(memory, SocketFlags.None, CancellationToken.None)
-                        .ConfigureAwait(false);
-                    memory = memory.Slice(sent);
-                }
+                lineStr = string.Empty;
+                return 1;
             }
 
             if (s.StartsWith("PING"))
             {
-                var memory = new ReadOnlyMemory<byte>(Encoding.ASCII.GetBytes("PONG\r\n"));
-                while (memory.Length != 0)
-                {
-                    var sent = await _socket.SendAsync(memory, SocketFlags.None, CancellationToken.None)
-                        .ConfigureAwait(false);
-                    memory = memory.Slice(sent);
-                }
+                lineStr = string.Empty;
+                return 2;
+            }
+            
+            if (s.StartsWith("MSG"))
+            {
+                lineStr = s;
+                return 3;
             }
         }
         catch (Exception e)
         {
             Console.WriteLine(e);
         }
+        
+        lineStr = string.Empty;
+        return 0;
     }
 
     bool TryReadLine(ref ReadOnlySequence<byte> buffer, out ReadOnlySequence<byte> line)
@@ -155,11 +192,25 @@ class NatsClient
         }
 
         // Skip the line + the \n.
-        line = buffer.Slice(0, position.Value);
+        line = buffer.Slice(0, position.Value.GetInteger() - 1);
         buffer = buffer.Slice(buffer.GetPosition(1, position.Value));
         return true;
     }
-    
+
+    bool TryReadPayload(ref ReadOnlySequence<byte> buffer, out ReadOnlySequence<byte> payload, int size)
+    {
+        if (buffer.Length < size)
+        {
+            payload = default;
+            return false;
+        }
+
+        // Skip the line + the \n.
+        payload = buffer.Slice(0, size);
+        buffer = buffer.Slice(size);
+        return true;
+    }
+
     private void LogError(Exception exception)
     {
         Console.WriteLine(exception);
