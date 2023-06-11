@@ -74,7 +74,6 @@ jobs:
 
     - name: Get tools
       run: |
-        Invoke-WebRequest https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -OutFile nuget.exe
         Invoke-WebRequest https://download.jetbrains.com/resharper/JetBrains.dotMemoryUnit.3.2.20220510.zip -OutFile dotMemoryUnit.zip
         Expand-Archive dotMemoryUnit.zip
         nuget install NUnit.ConsoleRunner -version 3.16.3
@@ -88,4 +87,4 @@ jobs:
         dotnet build
 
     - name: dotmemoryunit
-      run: dotMemoryUnit .\NUnit.ConsoleRunner.3.16.3\tools\nunit3-console.exe .\test1\bin\Debug\net6.0\test1.dll
+      run: dotMemoryUnit .\NUnit.ConsoleRunner.3.16.3\tools\nunit3-console.exe --propagate-exit-code -- .\test1\bin\Debug\net6.0\test1.dll
