@@ -1,4 +1,5 @@
 # natsbench
+https://docs.nats.io/reference/reference-protocols/nats-protocol
 ```
 S: INFO {"option_name":option_value,...}␍␊
 C: CONNECT {"option_name":option_value,...}␍␊
