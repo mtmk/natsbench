@@ -1,5 +1,3 @@
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -12,6 +10,7 @@ namespace NATS.Client.Core;
 /// <param name="Name"></param>
 /// <param name="Echo"></param>
 /// <param name="Verbose"></param>
+/// <param name="Headers"></param>
 /// <param name="AuthOptions"></param>
 /// <param name="TlsOptions"></param>
 /// <param name="Serializer"></param>
@@ -29,6 +28,7 @@ namespace NATS.Client.Core;
 /// <param name="CommandPoolSize"></param>
 /// <param name="RequestTimeout"></param>
 /// <param name="CommandTimeout"></param>
+/// <param name="SubscriptionCleanUpInterval"></param>
 /// <param name="WriterCommandBufferLimit"></param>
 public sealed record NatsOptions
 (
@@ -36,6 +36,7 @@ public sealed record NatsOptions
     string Name,
     bool Echo,
     bool Verbose,
+    bool Headers,
     NatsAuthOptions AuthOptions,
     TlsOptions TlsOptions,
     INatsSerializer Serializer,
@@ -53,6 +54,7 @@ public sealed record NatsOptions
     int CommandPoolSize,
     TimeSpan RequestTimeout,
     TimeSpan CommandTimeout,
+    TimeSpan SubscriptionCleanUpInterval,
     int? WriterCommandBufferLimit)
 {
     public static readonly NatsOptions Default = new(
@@ -60,9 +62,10 @@ public sealed record NatsOptions
         Name: "NATS .Net Client",
         Echo: true,
         Verbose: false,
+        Headers: true,
         AuthOptions: NatsAuthOptions.Default,
         TlsOptions: TlsOptions.Default,
-        Serializer: new JsonNatsSerializer(new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull }),
+        Serializer: JsonNatsSerializer.Default,
         LoggerFactory: NullLoggerFactory.Instance,
         WriterBufferSize: 65534, // 32767
         ReaderBufferSize: 1048576,
@@ -77,6 +80,7 @@ public sealed record NatsOptions
         CommandPoolSize: 256,
         RequestTimeout: TimeSpan.FromMinutes(1),
         CommandTimeout: TimeSpan.FromMinutes(1),
+        SubscriptionCleanUpInterval: TimeSpan.FromMinutes(5),
         WriterCommandBufferLimit: null);
 
     internal NatsUri[] GetSeedUris()

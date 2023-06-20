@@ -1,5 +1,3 @@
-using System.Diagnostics;
-
 namespace NATS.Client.Core.Tests;
 
 public class SubscriptionTest
@@ -8,7 +6,7 @@ public class SubscriptionTest
 
     public SubscriptionTest(ITestOutputHelper output) => _output = output;
 
-    // XXX [Fact]
+    [Fact]
     public async Task Subscription_with_same_subject()
     {
         await using var server = new NatsServer(_output, TransportType.Tcp);
@@ -24,7 +22,7 @@ public class SubscriptionTest
         var sync3 = 0;
         var count = new WaitSignal(3);
 
-        sub1.Register(m =>
+        var reg1 = sub1.Register(m =>
         {
             if (m.Data == 0)
             {
@@ -35,7 +33,7 @@ public class SubscriptionTest
             count.Pulse(m.Subject == "foo.bar" ? null : new Exception($"Subject mismatch {m.Subject}"));
         });
 
-        sub2.Register(m =>
+        var reg2 = sub2.Register(m =>
         {
             if (m.Data == 0)
             {
@@ -46,7 +44,7 @@ public class SubscriptionTest
             count.Pulse(m.Subject == "foo.bar" ? null : new Exception($"Subject mismatch {m.Subject}"));
         });
 
-        sub3.Register(m =>
+        var reg3 = sub3.Register(m =>
         {
             if (m.Data == 0)
             {
@@ -60,7 +58,7 @@ public class SubscriptionTest
         // Since subscription and publishing are sent through different connections there is
         // a race where one or more subscriptions are made after the publishing happens.
         // So, we make sure subscribers are accepted by the server before we send any test data.
-        await RetryUntil(
+        await Retry.Until(
             "all subscriptions are active",
             () => Volatile.Read(ref sync1) + Volatile.Read(ref sync2) + Volatile.Read(ref sync3) == 3,
             async () =>
@@ -89,25 +87,71 @@ public class SubscriptionTest
         Assert.False(frames[0].Message.Equals(frames[1].Message), "Should have different SIDs");
 
         await sub1.DisposeAsync();
+        await reg1;
         await sub2.DisposeAsync();
+        await reg2;
         await sub3.DisposeAsync();
+        await reg3;
         await nats1.DisposeAsync();
         await nats2.DisposeAsync();
         proxy.Dispose();
     }
 
-    private async Task RetryUntil(string reason, Func<bool> condition, Func<Task> action)
+    [Fact]
+    public async Task Subscription_periodic_cleanup_test()
     {
-        var timeout = TimeSpan.FromSeconds(10);
-        var stopwatch = Stopwatch.StartNew();
-        while (stopwatch.Elapsed < timeout)
+        await using var server = new NatsServer(_output, TransportType.Tcp);
+        var options = NatsOptions.Default with { SubscriptionCleanUpInterval = TimeSpan.FromSeconds(1) };
+        var (nats, proxy) = server.CreateProxiedClientConnection(options);
+
+        async Task Isolator()
         {
-            await action();
-            if (condition())
-                return;
-            await Task.Delay(50);
+            var sub = await nats.SubscribeAsync<int>("foo");
+
+            await Retry.Until(
+                "unsubscribed",
+                () => proxy.ClientFrames.Count(f => f.Message.StartsWith("SUB")) == 1);
+
+            // subscription object will be eligible for GC after next statement
+            Assert.Equal("foo", sub.Subject);
         }
 
-        throw new TimeoutException($"Can't {reason} in time");
+        await Isolator();
+
+        GC.Collect();
+
+        await Retry.Until(
+            "unsubscribe message received",
+            () => proxy.ClientFrames.Count(f => f.Message.StartsWith("UNSUB")) == 1);
+    }
+
+    [Fact]
+    public async Task Subscription_cleanup_on_message_receive_test()
+    {
+        await using var server = new NatsServer(_output, TransportType.Tcp);
+
+        // Make sure time won't kick-in and unsubscribe
+        var options = NatsOptions.Default with { SubscriptionCleanUpInterval = TimeSpan.MaxValue };
+        var (nats, proxy) = server.CreateProxiedClientConnection(options);
+
+        async Task Isolator()
+        {
+            var sub = await nats.SubscribeAsync<int>("foo");
+
+            await Retry.Until("unsubscribed", () => proxy.ClientFrames.Count(f => f.Message.StartsWith("SUB")) == 1);
+
+            // subscription object will be eligible for GC after next statement
+            Assert.Equal("foo", sub.Subject);
+        }
+
+        await Isolator();
+
+        GC.Collect();
+
+        // Publish should trigger UNSUB since NatsSub object should be collected by now.
+        await Retry.Until(
+            "unsubscribe message received",
+            () => proxy.ClientFrames.Count(f => f.Message.StartsWith("UNSUB")) == 1,
+            async () => await nats.PublishAsync("foo", 1));
     }
 }
