@@ -15,3 +15,12 @@ jobs:
           echo hi ${{ vars.my_repo_var }}
           echo hi2 ${{ env.MY_ENV_VAR }}
           ${{ env.my_other_var }} "hi3 MY_ENV_VAR=$MY_ENV_VAR"
+  bla2:
+    runs-on: windows-latest
+    steps:
+      - name: Run win thing
+        run: |
+          echo hi win
+          echo "my env var:${{ env.MY_ENV_VAR }}"
+          echo "same from env: ${env:my_other_var}"
+          
