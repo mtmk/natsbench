@@ -177,6 +177,7 @@ public class NatsServer : IAsyncDisposable
                     CertFile = Options.TlsClientCertFile,
                     KeyFile = Options.TlsClientKeyFile,
                     CaFile = Options.TlsCaFile,
+                    InsecureSkipVerify = true,
                 }
                 : TlsOptions.Default,
             Url = ClientUrl,
