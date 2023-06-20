@@ -23,4 +23,5 @@ jobs:
           echo hi win
           echo "my env var:${{ env.MY_ENV_VAR }}"
           echo "same from env: ${env:my_other_var}"
+          ${{ env.my_other_var }} "hi3 MY_ENV_VAR=$MY_ENV_VAR ... $env:MY_ENV_VAR"
           
