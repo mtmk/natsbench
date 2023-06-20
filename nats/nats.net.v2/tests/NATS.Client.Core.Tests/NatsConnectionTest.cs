@@ -246,9 +246,9 @@ public abstract partial class NatsConnectionTest
         var sub = await connection1.SubscribeAsync<int>(subject);
         var reg = sub.Register(x =>
         {
-            if (x.Data == 0)
+            if (x.Data < 10)
             {
-                Interlocked.Exchange(ref sync, 1);
+                Interlocked.Exchange(ref sync, x.Data);
                 return;
             }
 
@@ -266,9 +266,9 @@ public abstract partial class NatsConnectionTest
         });
 
         await Retry.Until(
-            "subscription is active",
+            "subscription is active (1)",
             () => Volatile.Read(ref sync) == 1,
-            async () => await connection2.PublishAsync(subject, 0));
+            async () => await connection2.PublishAsync(subject, 1));
 
         await connection2.PublishAsync(subject, 100);
         await connection2.PublishAsync(subject, 200);
@@ -286,6 +286,11 @@ public abstract partial class NatsConnectionTest
         connection1.ServerInfo!.Port.Should()
             .BeOneOf(cluster.Server2.Options.ServerPort, cluster.Server3.Options.ServerPort);
 
+        await Retry.Until(
+            "subscription is active (2)",
+            () => Volatile.Read(ref sync) == 2,
+            async () => await connection2.PublishAsync(subject, 2));
+        
         await connection2.PublishAsync(subject, 400);
         await connection2.PublishAsync(subject, 500);
         await waitForReceiveFinish;
