@@ -1,6 +1,8 @@
 ---
 name: test3
 on: workflow_dispatch
+env: 
+  MY_ENV_VAR: "2.3.4"
 
 jobs:
   
@@ -10,3 +12,4 @@ jobs:
       - name: Run something
         run: |
           echo hi ${{ vars.my_repo_var }}
+          echo hi2 ${{ env.MY_ENV_VAR }}
