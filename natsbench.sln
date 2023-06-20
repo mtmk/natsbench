@@ -39,6 +39,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workflows", "workflows", "{
 		.github\workflows\test1.yml = .github\workflows\test1.yml
 		.github\workflows\test2.yml = .github\workflows\test2.yml
 		.github\workflows\nats.yml = .github\workflows\nats.yml
+		.github\workflows\test3.yml = .github\workflows\test3.yml
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NATS.Client.Core", "nats\nats.net.v2\src\NATS.Client.Core\NATS.Client.Core.csproj", "{8A9C3E5A-E722-4053-AB7C-E49D9EDE9A6E}"
