@@ -1,0 +1,10 @@
+---
+name: test3
+on: workflow_dispatch
+jobs: 
+  bla1:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run something
+        run: |
+          echo hi
