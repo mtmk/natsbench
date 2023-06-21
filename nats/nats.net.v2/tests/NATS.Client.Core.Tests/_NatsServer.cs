@@ -72,7 +72,8 @@ public class NatsServer : IAsyncDisposable
             },
             _cancellationTokenSource.Token);
 
-        readVersion.Wait();
+        if (!readVersion.Wait(5000))
+            throw new TimeoutException("Waiting for server version");
         Version = version!;
 
         // Check for start server
