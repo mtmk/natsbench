@@ -11,9 +11,9 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - os: ubuntu-latest-4-cores
+          #- os: ubuntu-latest-4-cores
           #- os: windows-latest
-          #- os: ubuntu-latest
+          - os: ubuntu-latest
           #- os: macos-latest
 
     runs-on: ${{ matrix.config.os }}
