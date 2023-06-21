@@ -228,7 +228,7 @@ public class NatsClient
     void SendLine(string line)
     {
         Log("TX", line);
-        _sw.WriteLine(line);
+        _sw.Write($"{line}\r\n");
         _sw.Flush();
     }
 
@@ -278,20 +278,31 @@ public class NatsClient
     {
         var headers = new List<string>();
         
-        headers.Add("NATS/1.0");
-        
-        foreach (var h in headersString.Split(','))
+        if (headersString != "none")
+            headers.Add("NATS/1.0");
+
+        if (headersString != "none" && headersString != "empty")
         {
-            var kv = h.Split(':');
-            var k = kv.Length > 0 ? kv[0] : "";
-            var v = kv.Length > 1 ? kv[1] : "";
-            headers.Add($"{k}: {v}");
+            foreach (var h in headersString.Split(','))
+            {
+                var kv = h.Split(':');
+                var k = kv.Length > 0 ? kv[0] : "";
+                var v = kv.Length > 1 ? kv[1] : "";
+                headers.Add($"{k}: {v}");
+            }
         }
 
-        headers.Add("");
+        if (headersString != "none")
+            headers.Add("");
 
-        var headersOutput = string.Join("\n\r", headers) + "\n\r";
+        var headersOutput = string.Join("\n\r", headers) + "\r\n";
 
+        if (headersString == "none")
+            headersOutput = "";
+
+        if (payload == "empty")
+            payload = "";
+        
         SendLine($"HPUB {subject} {replyTo} {headersOutput.Length} {headersOutput.Length + payload.Length}");
         foreach (var header in headers)
         {

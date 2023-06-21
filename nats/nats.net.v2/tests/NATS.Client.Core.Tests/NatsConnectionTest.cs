@@ -107,14 +107,25 @@ public abstract partial class NatsConnectionTest
         var subject = Guid.NewGuid().ToString();
         var text = new StringBuilder(minSize).Insert(0, "a", minSize).ToString();
 
+        var sync = 0;
         await using var replyHandle = await subConnection.ReplyAsync<int, string>(subject, x =>
         {
+            if (x < 10)
+            {
+                Interlocked.Exchange(ref sync, x);
+                return "sync";
+            }
+
             if (x == 100)
                 throw new Exception();
             return text + x;
         });
 
-        await Task.Delay(1000);
+        await Retry.Until(
+            "reply handle is ready",
+            () => Volatile.Read(ref sync) == 1,
+            async () => await pubConnection.PublishAsync(subject, 1, new NatsPubOpts { ReplyTo = "ignore" }),
+            retryDelay: TimeSpan.FromSeconds(1));
 
         var v = await pubConnection.RequestAsync<int, string>(subject, 9999);
         v.Should().Be(text + 9999);
@@ -156,9 +167,9 @@ public abstract partial class NatsConnectionTest
         var sub = await subConnection.SubscribeAsync<int>(subject);
         var reg = sub.Register(x =>
         {
-            if (x.Data == 0)
+            if (x.Data < 10)
             {
-                Interlocked.Exchange(ref sync, 1);
+                Interlocked.Exchange(ref sync, x.Data);
                 return;
             }
 
@@ -176,9 +187,9 @@ public abstract partial class NatsConnectionTest
         });
 
         await Retry.Until(
-            "subscription is active",
+            "subscription is active (1)",
             () => Volatile.Read(ref sync) == 1,
-            async () => await pubConnection.PublishAsync(subject, 0));
+            async () => await pubConnection.PublishAsync(subject, 1));
 
         await pubConnection.PublishAsync(subject, 100);
         await pubConnection.PublishAsync(subject, 200);
@@ -200,6 +211,11 @@ public abstract partial class NatsConnectionTest
         await using var newServer = new NatsServer(_output, _transportType, options);
         await subConnection.ConnectAsync(); // wait open again
         await pubConnection.ConnectAsync(); // wait open again
+
+        await Retry.Until(
+            "subscription is active (2)",
+            () => Volatile.Read(ref sync) == 2,
+            async () => await pubConnection.PublishAsync(subject, 2));
 
         _output.WriteLine("RECONNECT COMPLETE, PUBLISH 400 and 500");
         await pubConnection.PublishAsync(subject, 400);
@@ -268,7 +284,8 @@ public abstract partial class NatsConnectionTest
         await Retry.Until(
             "subscription is active (1)",
             () => Volatile.Read(ref sync) == 1,
-            async () => await connection2.PublishAsync(subject, 1));
+            async () => await connection2.PublishAsync(subject, 1),
+            retryDelay: TimeSpan.FromSeconds(.5));
 
         await connection2.PublishAsync(subject, 100);
         await connection2.PublishAsync(subject, 200);
@@ -281,16 +298,18 @@ public abstract partial class NatsConnectionTest
         await cluster.Server1.DisposeAsync(); // process kill
         await disconnectSignal;
 
+        Net.WaitForTcpPortToClose(cluster.Server1.ConnectionPort);
+
         await connection1.ConnectAsync(); // wait for reconnect complete.
 
-        connection1.ServerInfo!.Port.Should()
-            .BeOneOf(cluster.Server2.Options.ServerPort, cluster.Server3.Options.ServerPort);
+        connection1.ServerInfo!.Port.Should().BeOneOf(cluster.Server2.ConnectionPort, cluster.Server3.ConnectionPort);
 
         await Retry.Until(
             "subscription is active (2)",
             () => Volatile.Read(ref sync) == 2,
-            async () => await connection2.PublishAsync(subject, 2));
-        
+            async () => await connection2.PublishAsync(subject, 2),
+            retryDelay: TimeSpan.FromSeconds(.5));
+
         await connection2.PublishAsync(subject, 400);
         await connection2.PublishAsync(subject, 500);
         await waitForReceiveFinish;
