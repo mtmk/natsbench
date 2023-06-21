@@ -24,6 +24,7 @@ public class NatsServer : IAsyncDisposable
 {
     private static readonly string Ext = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? ".exe" : string.Empty;
     private static readonly string NatsServerPath = $"nats-server{Ext}";
+    private static readonly Version Version;
 
     private readonly CancellationTokenSource _cancellationTokenSource = new();
     private readonly string? _configFileName;
@@ -38,6 +39,25 @@ public class NatsServer : IAsyncDisposable
     {
     }
 
+    static NatsServer()
+    {
+        var process = new Process
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = NatsServerPath,
+                Arguments = "-v",
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+            }
+        };
+        process.Start();
+        process.WaitForExit();
+        var output = process.StandardOutput.ReadToEnd();
+        var value = Regex.Match(output, @"v(\d+\.\d+\.\d+)").Groups[1].Value;
+        Version = new Version(value);
+    }
+    
     public NatsServer(ITestOutputHelper outputHelper, TransportType transportType)
         : this(outputHelper, transportType, new NatsServerOptionsBuilder().UseTransport(transportType).Build())
     {
@@ -72,9 +92,9 @@ public class NatsServer : IAsyncDisposable
             },
             _cancellationTokenSource.Token);
 
-        if (!readVersion.Wait(5000))
-            throw new TimeoutException("Waiting for server version");
-        Version = version!;
+        // if (!readVersion.Wait(5000))
+        //     throw new TimeoutException("Waiting for server version");
+        // Version = version!;
 
         // Check for start server
         Task.Run(async () =>
@@ -112,7 +132,7 @@ public class NatsServer : IAsyncDisposable
 
     public NatsServerOptions Options { get; }
 
-    public Version Version { get; }
+    //public Version Version { get; }
 
     public string ClientUrl => _transportType switch
     {
