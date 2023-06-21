@@ -11,9 +11,10 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - os: windows-latest
-          - os: ubuntu-latest
-          - os: macos-latest
+          - os: ubuntu-latest-4-cores
+          #- os: windows-latest
+          #- os: ubuntu-latest
+          #- os: macos-latest
 
     runs-on: ${{ matrix.config.os }}
 
@@ -59,4 +60,4 @@ jobs:
         run:  dotnet build --p:WarningLevel=0
         
       - name: test
-        run: dotnet test --no-build --logger:"console;verbosity=normal" nats/nats.net.v2/tests/NATS.Client.Core.Tests
+        run: dotnet test --no-build --logger:"console;verbosity=detailed" nats/nats.net.v2/tests/NATS.Client.Core.Tests
