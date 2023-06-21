@@ -1,6 +1,6 @@
 ﻿namespace NATS.Client.Core.Internal;
 
-internal static class StringExtensions
+internal static class StringUtils
 {
     /// <summary>
     /// Allocation free ASCII buffer writer.

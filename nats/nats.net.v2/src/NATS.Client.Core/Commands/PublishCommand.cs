@@ -7,7 +7,6 @@ internal sealed class AsyncPublishCommand<T> : AsyncCommandBase<AsyncPublishComm
 {
     private string? _subject;
     private string? _replyTo;
-    private NatsHeaders? _headers;
     private T? _value;
     private INatsSerializer? _serializer;
 
@@ -15,7 +14,7 @@ internal sealed class AsyncPublishCommand<T> : AsyncCommandBase<AsyncPublishComm
     {
     }
 
-    public static AsyncPublishCommand<T> Create(ObjectPool pool, CancellationTimer timer, string subject, string? replyTo, NatsHeaders? headers, T? value, INatsSerializer serializer)
+    public static AsyncPublishCommand<T> Create(ObjectPool pool, CancellationTimer timer, string subject, string? replyTo, T? value, INatsSerializer serializer)
     {
         if (!TryRent(pool, out var result))
         {
@@ -24,7 +23,6 @@ internal sealed class AsyncPublishCommand<T> : AsyncCommandBase<AsyncPublishComm
 
         result._subject = subject;
         result._replyTo = replyTo;
-        result._headers = headers;
         result._value = value;
         result._serializer = serializer;
         result.SetCancellationTimer(timer);
@@ -34,13 +32,12 @@ internal sealed class AsyncPublishCommand<T> : AsyncCommandBase<AsyncPublishComm
 
     public override void Write(ProtocolWriter writer)
     {
-        writer.WritePublish(_subject!, _replyTo, _headers, _value, _serializer!);
+        writer.WritePublish(_subject!, _replyTo, _value, _serializer!);
     }
 
     protected override void Reset()
     {
         _subject = default;
-        _headers = default;
         _value = default;
         _serializer = null;
     }
@@ -49,15 +46,13 @@ internal sealed class AsyncPublishCommand<T> : AsyncCommandBase<AsyncPublishComm
 internal sealed class AsyncPublishBytesCommand : AsyncCommandBase<AsyncPublishBytesCommand>
 {
     private string? _subject;
-    private string? _replyTo;
-    private NatsHeaders? _headers;
-    private ReadOnlySequence<byte> _payload;
+    private ReadOnlySequence<byte> _value;
 
     private AsyncPublishBytesCommand()
     {
     }
 
-    public static AsyncPublishBytesCommand Create(ObjectPool pool, CancellationTimer timer, string subject, string? replyTo, NatsHeaders? headers, ReadOnlySequence<byte> payload)
+    public static AsyncPublishBytesCommand Create(ObjectPool pool, CancellationTimer timer, string subject, ReadOnlySequence<byte> value)
     {
         if (!TryRent(pool, out var result))
         {
@@ -65,9 +60,7 @@ internal sealed class AsyncPublishBytesCommand : AsyncCommandBase<AsyncPublishBy
         }
 
         result._subject = subject;
-        result._replyTo = replyTo;
-        result._headers = headers;
-        result._payload = payload;
+        result._value = value;
         result.SetCancellationTimer(timer);
 
         return result;
@@ -75,14 +68,12 @@ internal sealed class AsyncPublishBytesCommand : AsyncCommandBase<AsyncPublishBy
 
     public override void Write(ProtocolWriter writer)
     {
-        writer.WritePublish(_subject!, _replyTo, _headers, _payload);
+        writer.WritePublish(_subject!, null, _value);
     }
 
     protected override void Reset()
     {
         _subject = default;
-        _replyTo = default;
-        _headers = default;
-        _payload = default;
+        _value = default;
     }
 }

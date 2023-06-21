@@ -28,8 +28,8 @@ public abstract partial class NatsConnectionTest
         var signalComplete = new WaitSignal();
 
         var list = new List<int>();
-        var sub = await subConnection.SubscribeAsync<int>(subject);
-        var register = sub.Register(x =>
+        await using var sub = await subConnection.SubscribeAsync<int>(subject);
+        sub.Register(x =>
         {
             _output.WriteLine($"Received: {x.Data}");
             list.Add(x.Data);
@@ -46,8 +46,6 @@ public abstract partial class NatsConnectionTest
         }
 
         await signalComplete;
-        await sub.DisposeAsync();
-        await register;
 
         list.ShouldEqual(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
     }
@@ -69,8 +67,7 @@ public abstract partial class NatsConnectionTest
 
             var actual = new List<SampleClass>();
             var signalComplete = new WaitSignal();
-            var sub = await subConnection.SubscribeAsync<SampleClass>(key);
-            var register = sub.Register(x =>
+            await using var d = (await subConnection.SubscribeAsync<SampleClass>(key)).Register(x =>
             {
                 actual.Add(x.Data);
                 if (x.Data.Id == 30)
@@ -86,8 +83,6 @@ public abstract partial class NatsConnectionTest
             await pubConnection.PublishAsync(key, three);
 
             await signalComplete;
-            await sub.DisposeAsync();
-            await register;
 
             actual.ShouldEqual(new[] { one, two, three });
         }
@@ -107,25 +102,14 @@ public abstract partial class NatsConnectionTest
         var subject = Guid.NewGuid().ToString();
         var text = new StringBuilder(minSize).Insert(0, "a", minSize).ToString();
 
-        var sync = 0;
         await using var replyHandle = await subConnection.ReplyAsync<int, string>(subject, x =>
         {
-            if (x < 10)
-            {
-                Interlocked.Exchange(ref sync, x);
-                return "sync";
-            }
-
             if (x == 100)
                 throw new Exception();
             return text + x;
         });
 
-        await Retry.Until(
-            "reply handle is ready",
-            () => Volatile.Read(ref sync) == 1,
-            async () => await pubConnection.PublishAsync(subject, 1, new NatsPubOpts { ReplyTo = "ignore" }),
-            retryDelay: TimeSpan.FromSeconds(1));
+        await Task.Delay(1000);
 
         var v = await pubConnection.RequestAsync<int, string>(subject, 9999);
         v.Should().Be(text + 9999);
@@ -153,7 +137,7 @@ public abstract partial class NatsConnectionTest
             ServerDisposeReturnsPorts = false,
         };
         await using var server = new NatsServer(_output, _transportType, options);
-        var subject = Guid.NewGuid().ToString();
+        var key = Guid.NewGuid().ToString();
 
         await using var subConnection = server.CreateClientConnection();
         await using var pubConnection = server.CreateClientConnection();
@@ -161,18 +145,10 @@ public abstract partial class NatsConnectionTest
         await pubConnection.ConnectAsync(); // wait open
 
         var list = new List<int>();
-        var sync = 0;
         var waitForReceive300 = new WaitSignal();
         var waitForReceiveFinish = new WaitSignal();
-        var sub = await subConnection.SubscribeAsync<int>(subject);
-        var reg = sub.Register(x =>
+        var d = (await subConnection.SubscribeAsync<int>(key)).Register(x =>
         {
-            if (x.Data < 10)
-            {
-                Interlocked.Exchange(ref sync, x.Data);
-                return;
-            }
-
             _output.WriteLine("RECEIVED: " + x.Data);
             list.Add(x.Data);
             if (x.Data == 300)
@@ -185,15 +161,11 @@ public abstract partial class NatsConnectionTest
                 waitForReceiveFinish.Pulse();
             }
         });
+        await subConnection.PingAsync(); // wait for subscribe complete
 
-        await Retry.Until(
-            "subscription is active (1)",
-            () => Volatile.Read(ref sync) == 1,
-            async () => await pubConnection.PublishAsync(subject, 1));
-
-        await pubConnection.PublishAsync(subject, 100);
-        await pubConnection.PublishAsync(subject, 200);
-        await pubConnection.PublishAsync(subject, 300);
+        await pubConnection.PublishAsync(key, 100);
+        await pubConnection.PublishAsync(key, 200);
+        await pubConnection.PublishAsync(key, 300);
 
         _output.WriteLine("TRY WAIT RECEIVE 300");
         await waitForReceive300;
@@ -212,18 +184,10 @@ public abstract partial class NatsConnectionTest
         await subConnection.ConnectAsync(); // wait open again
         await pubConnection.ConnectAsync(); // wait open again
 
-        await Retry.Until(
-            "subscription is active (2)",
-            () => Volatile.Read(ref sync) == 2,
-            async () => await pubConnection.PublishAsync(subject, 2));
-
         _output.WriteLine("RECONNECT COMPLETE, PUBLISH 400 and 500");
-        await pubConnection.PublishAsync(subject, 400);
-        await pubConnection.PublishAsync(subject, 500);
+        await pubConnection.PublishAsync(key, 400);
+        await pubConnection.PublishAsync(key, 500);
         await waitForReceiveFinish;
-
-        await sub.DisposeAsync();
-        await reg;
 
         list.ShouldEqual(100, 200, 300, 400, 500);
     }
@@ -234,7 +198,7 @@ public abstract partial class NatsConnectionTest
         await using var cluster = new NatsCluster(_output, _transportType);
         await Task.Delay(TimeSpan.FromSeconds(5)); // wait for cluster completely connected.
 
-        var subject = Guid.NewGuid().ToString();
+        var key = Guid.NewGuid().ToString();
 
         await using var connection1 = cluster.Server1.CreateClientConnection();
         await using var connection2 = cluster.Server2.CreateClientConnection();
@@ -256,18 +220,10 @@ public abstract partial class NatsConnectionTest
         connection3.ServerInfo!.ClientConnectUrls!.Select(x => new NatsUri(x, true).Port).Distinct().Count().ShouldBe(3);
 
         var list = new List<int>();
-        var sync = 0;
         var waitForReceive300 = new WaitSignal();
         var waitForReceiveFinish = new WaitSignal();
-        var sub = await connection1.SubscribeAsync<int>(subject);
-        var reg = sub.Register(x =>
+        var d = (await connection1.SubscribeAsync<int>(key)).Register(x =>
         {
-            if (x.Data < 10)
-            {
-                Interlocked.Exchange(ref sync, x.Data);
-                return;
-            }
-
             _output.WriteLine("RECEIVED: " + x.Data);
             list.Add(x.Data);
             if (x.Data == 300)
@@ -280,16 +236,11 @@ public abstract partial class NatsConnectionTest
                 waitForReceiveFinish.Pulse();
             }
         });
+        await connection1.PingAsync(); // wait for subscribe complete
 
-        await Retry.Until(
-            "subscription is active (1)",
-            () => Volatile.Read(ref sync) == 1,
-            async () => await connection2.PublishAsync(subject, 1),
-            retryDelay: TimeSpan.FromSeconds(.5));
-
-        await connection2.PublishAsync(subject, 100);
-        await connection2.PublishAsync(subject, 200);
-        await connection2.PublishAsync(subject, 300);
+        await connection2.PublishAsync(key, 100);
+        await connection2.PublishAsync(key, 200);
+        await connection2.PublishAsync(key, 300);
         await waitForReceive300;
 
         var disconnectSignal = connection1.ConnectionDisconnectedAsAwaitable(); // register disconnect before kill
@@ -298,25 +249,14 @@ public abstract partial class NatsConnectionTest
         await cluster.Server1.DisposeAsync(); // process kill
         await disconnectSignal;
 
-        Net.WaitForTcpPortToClose(cluster.Server1.ConnectionPort);
-
         await connection1.ConnectAsync(); // wait for reconnect complete.
 
-        connection1.ServerInfo!.Port.Should().BeOneOf(cluster.Server2.ConnectionPort, cluster.Server3.ConnectionPort);
+        connection1.ServerInfo!.Port.Should()
+            .BeOneOf(cluster.Server2.Options.ServerPort, cluster.Server3.Options.ServerPort);
 
-        await Retry.Until(
-            "subscription is active (2)",
-            () => Volatile.Read(ref sync) == 2,
-            async () => await connection2.PublishAsync(subject, 2),
-            retryDelay: TimeSpan.FromSeconds(.5));
-
-        await connection2.PublishAsync(subject, 400);
-        await connection2.PublishAsync(subject, 500);
+        await connection2.PublishAsync(key, 400);
+        await connection2.PublishAsync(key, 500);
         await waitForReceiveFinish;
-
-        await sub.DisposeAsync();
-        await reg;
-
         list.ShouldEqual(100, 200, 300, 400, 500);
     }
 }

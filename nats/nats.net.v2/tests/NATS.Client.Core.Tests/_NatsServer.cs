@@ -8,18 +8,6 @@ using Cysharp.Diagnostics;
 
 namespace NATS.Client.Core.Tests;
 
-public static class ServerVersions
-{
-#pragma warning disable SA1310
-#pragma warning disable SA1401
-
-    // Changed INFO port reporting for WS connections (nats-server #4255)
-    public static Version V2_9_19 = new("2.9.19");
-
-#pragma warning restore SA1401
-#pragma warning restore SA1310
-}
-
 public class NatsServer : IAsyncDisposable
 {
     private static readonly string Ext = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? ".exe" : string.Empty;
@@ -56,24 +44,8 @@ public class NatsServer : IAsyncDisposable
         outputHelper.WriteLine("ProcessStart: " + cmd + Environment.NewLine + config);
         var (p, stdout, stderr) = ProcessX.GetDualAsyncEnumerable(cmd);
 
-        var readVersion = new ManualResetEventSlim();
-        Version? version = null;
-        _processOut = EnumerateWithLogsAsync(stdout, null, _cancellationTokenSource.Token);
-        _processErr = EnumerateWithLogsAsync(
-            stderr,
-            line =>
-            {
-                var match = Regex.Match(line, @"INF.*Version:\s*([\d\.]+)");
-                if (match.Success)
-                {
-                    version = new Version(match.Groups[1].Value);
-                    readVersion.Set();
-                }
-            },
-            _cancellationTokenSource.Token);
-
-        readVersion.Wait();
-        Version = version!;
+        _processOut = EnumerateWithLogsAsync(stdout, _cancellationTokenSource.Token);
+        _processErr = EnumerateWithLogsAsync(stderr, _cancellationTokenSource.Token);
 
         // Check for start server
         Task.Run(async () =>
@@ -111,8 +83,6 @@ public class NatsServer : IAsyncDisposable
 
     public NatsServerOptions Options { get; }
 
-    public Version Version { get; }
-
     public string ClientUrl => _transportType switch
     {
         TransportType.Tcp => $"nats://localhost:{Options.ServerPort}",
@@ -120,21 +90,6 @@ public class NatsServer : IAsyncDisposable
         TransportType.WebSocket => $"ws://localhost:{Options.WebSocketPort}",
         _ => throw new ArgumentOutOfRangeException(),
     };
-
-    public int ConnectionPort
-    {
-        get
-        {
-            if (_transportType == TransportType.WebSocket && Version >= ServerVersions.V2_9_19)
-            {
-                return Options.WebSocketPort!.Value;
-            }
-            else
-            {
-                return Options.ServerPort;
-            }
-        }
-    }
 
     public async ValueTask DisposeAsync()
     {
@@ -228,14 +183,13 @@ public class NatsServer : IAsyncDisposable
         };
     }
 
-    private async Task<string[]> EnumerateWithLogsAsync(ProcessAsyncEnumerable enumerable, Action<string>? output, CancellationToken cancellationToken)
+    private async Task<string[]> EnumerateWithLogsAsync(ProcessAsyncEnumerable enumerable, CancellationToken cancellationToken)
     {
         var l = new List<string>();
         try
         {
             await foreach (var item in enumerable.WithCancellation(cancellationToken))
             {
-                output?.Invoke(item);
                 l.Add(item);
             }
         }
@@ -380,16 +334,7 @@ public class NatsProxy : IDisposable
 
     private bool NatsProtoDump(int client, string origin, TextReader sr, TextWriter sw)
     {
-        string? message;
-        try
-        {
-            message = sr.ReadLine();
-        }
-        catch
-        {
-            return false;
-        }
-
+        var message = sr.ReadLine();
         if (message == null) return false;
 
         if (Regex.IsMatch(message, @"^(INFO|CONNECT|PING|PONG|UNSUB|SUB|\+OK|-ERR)"))
@@ -424,11 +369,14 @@ public class NatsProxy : IDisposable
                 case >= ' ' and <= '~':
                     sb.Append(c);
                     break;
+                case '\t':
+                    sb.Append("\\t");
+                    break;
                 case '\n':
-                    sb.Append('␊');
+                    sb.Append("\\n");
                     break;
                 case '\r':
-                    sb.Append('␍');
+                    sb.Append("\\r");
                     break;
                 default:
                     sb.Append('.');
@@ -441,7 +389,7 @@ public class NatsProxy : IDisposable
             sw.Flush();
 
             if (client > 0)
-                AddFrame(new Frame(client, origin, Message: $"{message}␍␊{sb}"));
+                AddFrame(new Frame(client, origin, Message: $"{message}\\r\\n{sb}"));
 
             return true;
         }
