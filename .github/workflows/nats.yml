@@ -18,6 +18,9 @@ jobs:
 
     runs-on: ${{ matrix.config.os }}
 
+    env:
+      NATS_SERVER_VERSION: 2.9.19
+      
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -32,7 +35,7 @@ jobs:
       - name: tools linux
         if: ${{ matrix.config.os == 'ubuntu-latest' }}
         run: |
-          curl -L -o nats-server.tar.gz https://github.com/nats-io/nats-server/releases/download/v2.9.17/nats-server-v2.9.17-linux-amd64.tar.gz
+          curl -L -o nats-server.tar.gz https://github.com/nats-io/nats-server/releases/download/v${{ env.NATS_SERVER_VERSION }}/nats-server-v${{ env.NATS_SERVER_VERSION }}-linux-amd64.tar.gz
           mkdir tools-nats-server
           tar -xf nats-server.tar.gz -C tools-nats-server --strip-components=1
           echo "$(pwd)/tools-nats-server" >> $GITHUB_PATH
@@ -40,7 +43,7 @@ jobs:
       - name: tools macos
         if: ${{ matrix.config.os == 'macos-latest' }}
         run: |
-          curl -L -o nats-server.tar.gz https://github.com/nats-io/nats-server/releases/download/v2.9.17/nats-server-v2.9.17-darwin-amd64.tar.gz
+          curl -L -o nats-server.tar.gz https://github.com/nats-io/nats-server/releases/download/v${{ env.NATS_SERVER_VERSION }}/nats-server-v${{ env.NATS_SERVER_VERSION }}-darwin-amd64.tar.gz
           mkdir tools-nats-server
           tar -xf nats-server.tar.gz -C tools-nats-server --strip-components=1
           echo "$(pwd)/tools-nats-server" >> $GITHUB_PATH
@@ -48,10 +51,10 @@ jobs:
       - name: tools windows
         if: ${{ matrix.config.os == 'windows-latest' }}
         run: |
-          Invoke-WebRequest https://github.com/nats-io/nats-server/releases/download/v2.9.17/nats-server-v2.9.17-windows-amd64.zip -OutFile tools-nats-server.zip
+          Invoke-WebRequest https://github.com/nats-io/nats-server/releases/download/v${{ env.NATS_SERVER_VERSION }}/nats-server-v${{ env.NATS_SERVER_VERSION }}-windows-amd64.zip -OutFile tools-nats-server.zip
           Expand-Archive tools-nats-server.zip
           $current_path = (Get-Item .).FullName
-          echo "$current_path\tools-nats-server\nats-server-v2.9.17-windows-amd64" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          echo "$current_path\tools-nats-server\nats-server-v${{ env.NATS_SERVER_VERSION }}-windows-amd64" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: nats-server
         run: nats-server -v
