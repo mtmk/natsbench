@@ -3,17 +3,36 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace NATS.Client.Core;
 
-public record NatsMsg(string Subject, ReadOnlyMemory<byte> Data) : NatsMsgBase(Subject);
-
-public record NatsMsg<T>(string Subject, T Data) : NatsMsgBase(Subject);
-
-public abstract record NatsMsgBase(string Subject)
+public readonly record struct NatsMsg(
+    string Subject,
+    string? ReplyTo,
+    NatsHeaders? Headers,
+    ReadOnlyMemory<byte> Data,
+    INatsConnection? Connection)
 {
-    internal INatsCommand? Connection { get; init; }
+    internal static NatsMsg Build(
+        string subject,
+        string? replyTo,
+        in ReadOnlySequence<byte>? headersBuffer,
+        in ReadOnlySequence<byte> payloadBuffer,
+        INatsConnection? connection,
+        HeaderParser headerParser)
+    {
+        NatsHeaders? headers = null;
 
-    public string? ReplyTo { get; init; }
+        if (headersBuffer != null)
+        {
+            headers = new NatsHeaders();
+            if (!headerParser.ParseHeaders(new SequenceReader<byte>(headersBuffer.Value), headers))
+            {
+                throw new NatsException("Error parsing headers");
+            }
 
-    public NatsHeaders? Headers { get; init; }
+            headers.SetReadOnly();
+        }
+
+        return new NatsMsg(subject, replyTo, headers, payloadBuffer.ToArray(), connection);
+    }
 
     public ValueTask ReplyAsync(ReadOnlySequence<byte> data = default, in NatsPubOpts? opts = default, CancellationToken cancellationToken = default)
     {
@@ -25,6 +44,55 @@ public abstract record NatsMsgBase(string Subject)
     {
         CheckReplyPreconditions();
         return Connection.PublishAsync(msg with { Subject = ReplyTo! }, cancellationToken);
+    }
+
+    [MemberNotNull(nameof(Connection))]
+    private void CheckReplyPreconditions()
+    {
+        if (Connection == default)
+        {
+            throw new NatsException("unable to send reply; message did not originate from a subscription");
+        }
+
+        if (string.IsNullOrWhiteSpace(ReplyTo))
+        {
+            throw new NatsException("unable to send reply; ReplyTo is empty");
+        }
+    }
+}
+
+public readonly record struct NatsMsg<T>(
+    string Subject,
+    string? ReplyTo,
+    NatsHeaders? Headers,
+    T? Data,
+    INatsConnection? Connection)
+{
+    internal static NatsMsg<T> Build(
+        string subject,
+        string? replyTo,
+        in ReadOnlySequence<byte>? headersBuffer,
+        in ReadOnlySequence<byte> payloadBuffer,
+        INatsConnection? connection,
+        HeaderParser headerParser,
+        INatsSerializer serializer)
+    {
+        var data = serializer.Deserialize<T>(payloadBuffer);
+
+        NatsHeaders? headers = null;
+
+        if (headersBuffer != null)
+        {
+            headers = new NatsHeaders();
+            if (!headerParser.ParseHeaders(new SequenceReader<byte>(headersBuffer.Value), headers))
+            {
+                throw new NatsException("Error parsing headers");
+            }
+
+            headers.SetReadOnly();
+        }
+
+        return new NatsMsg<T>(subject, replyTo, headers, data, connection);
     }
 
     public ValueTask ReplyAsync<TReply>(TReply data, in NatsPubOpts? opts = default, CancellationToken cancellationToken = default)

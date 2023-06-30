@@ -16,7 +16,7 @@ public enum NatsConnectionState
     Reconnecting,
 }
 
-public partial class NatsConnection : IAsyncDisposable, INatsCommand
+public partial class NatsConnection : IAsyncDisposable, INatsConnection
 {
 #pragma warning disable SA1401
     /// <summary>
@@ -25,7 +25,6 @@ public partial class NatsConnection : IAsyncDisposable, INatsCommand
     public Func<(string Host, int Port), ValueTask<(string Host, int Port)>>? OnConnectingAsync;
 
     internal readonly ConnectionStatsCounter Counter; // allow to call from external sources
-    internal readonly ReadOnlyMemory<byte> InboxPrefix;
 #pragma warning restore SA1401
     private readonly object _gate = new object();
     private readonly WriterState _writerState;
@@ -71,10 +70,10 @@ public partial class NatsConnection : IAsyncDisposable, INatsCommand
         _writerState = new WriterState(options);
         _commandWriter = _writerState.CommandBuffer.Writer;
         _subscriptionManager = new SubscriptionManager(this);
-        InboxPrefix = Encoding.ASCII.GetBytes($"{options.InboxPrefix}{Guid.NewGuid()}.");
         _logger = options.LoggerFactory.CreateLogger<NatsConnection>();
         _clientOptions = new ClientOptions(Options);
         HeaderParser = new HeaderParser(options.HeaderEncoding);
+        InboxSubscriber = new InboxSubscriber(this, prefix1: options.InboxPrefix);
     }
 
     // events
@@ -90,7 +89,11 @@ public partial class NatsConnection : IAsyncDisposable, INatsCommand
 
     public ServerInfo? ServerInfo { get; internal set; } // server info is set when received INFO
 
-    internal HeaderParser HeaderParser { get; }
+    public HeaderParser HeaderParser { get; }
+
+    internal InboxSubscriber InboxSubscriber { get; }
+
+    internal ObjectPool ObjectPool => _pool;
 
     /// <summary>
     /// Connect socket and write CONNECT command to nats server.
@@ -183,13 +186,13 @@ public partial class NatsConnection : IAsyncDisposable, INatsCommand
 
     internal ValueTask PostPongAsync()
     {
-        return EnqueueCommandAsync(PongCommand.Create(_pool, GetCommandTimer(CancellationToken.None)));
+        return EnqueueCommandAsync(PongCommand.Create(_pool, GetCancellationTimer(CancellationToken.None)));
     }
 
     // called only internally
-    internal ValueTask SubscribeCoreAsync(int sid, string subject, string? queueGroup, CancellationToken cancellationToken)
+    internal ValueTask SubscribeCoreAsync(int sid, string subject, string? queueGroup, int? maxMsgs, CancellationToken cancellationToken)
     {
-        var command = AsyncSubscribeCommand.Create(_pool, GetCommandTimer(cancellationToken), sid, subject, queueGroup);
+        var command = AsyncSubscribeCommand.Create(_pool, GetCancellationTimer(cancellationToken), sid, subject, queueGroup, maxMsgs);
         return EnqueueAndAwaitCommandAsync(command);
     }
 
@@ -379,15 +382,15 @@ public partial class NatsConnection : IAsyncDisposable, INatsCommand
 
             // add CONNECT and PING command to priority lane
             _writerState.PriorityCommands.Clear();
-            var connectCommand = AsyncConnectCommand.Create(_pool, _clientOptions, GetCommandTimer(CancellationToken.None));
+            var connectCommand = AsyncConnectCommand.Create(_pool, _clientOptions, GetCancellationTimer(CancellationToken.None));
             _writerState.PriorityCommands.Add(connectCommand);
-            _writerState.PriorityCommands.Add(PingCommand.Create(_pool, GetCommandTimer(CancellationToken.None)));
+            _writerState.PriorityCommands.Add(PingCommand.Create(_pool, GetCancellationTimer(CancellationToken.None)));
 
             if (reconnect)
             {
                 // Add SUBSCRIBE command to priority lane
                 var subscribeCommand =
-                    AsyncSubscribeBatchCommand.Create(_pool, GetCommandTimer(CancellationToken.None), _subscriptionManager.GetExistingSubscriptions().ToArray());
+                    AsyncSubscribeBatchCommand.Create(_pool, GetCancellationTimer(CancellationToken.None), _subscriptionManager.GetExistingSubscriptions().ToArray());
                 _writerState.PriorityCommands.Add(subscribeCommand);
             }
 
@@ -773,6 +776,12 @@ public partial class NatsConnection : IAsyncDisposable, INatsCommand
     {
         await ConnectAsync().ConfigureAwait(false);
         return await coreAsync(this, item1, item2, item3, item4).ConfigureAwait(false);
+    }
+
+    private async ValueTask<TResult> WithConnectAsync<T1, T2, T3, T4, T5, TResult>(T1 item1, T2 item2, T3 item3, T4 item4, T5 item5, Func<NatsConnection, T1, T2, T3, T4, T5, ValueTask<TResult>> coreAsync)
+    {
+        await ConnectAsync().ConfigureAwait(false);
+        return await coreAsync(this, item1, item2, item3, item4, item5).ConfigureAwait(false);
     }
 }
 

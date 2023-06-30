@@ -2,10 +2,8 @@ using System.Buffers;
 
 namespace NATS.Client.Core;
 
-public interface INatsCommand
+public interface INatsConnection
 {
-    ValueTask FlushAsync(CancellationToken cancellationToken = default);
-
     /// <summary>
     /// Send PING command and await PONG. Return value is similar as Round Trip Time (RTT).
     /// </summary>
@@ -29,7 +27,7 @@ public interface INatsCommand
     /// <param name="msg">A <see cref="NatsMsg"/> representing message details.</param>
     /// <param name="cancellationToken">A <see cref="CancellationToken"/> used to cancel the command.</param>
     /// <returns>A <see cref="ValueTask"/> that represents the asynchronous send operation.</returns>
-    ValueTask PublishAsync(NatsMsg msg, CancellationToken cancellationToken = default);
+    ValueTask PublishAsync(in NatsMsg msg, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Publishes a serializable message payload to the given subject name, optionally supplying a reply subject.
@@ -49,7 +47,7 @@ public interface INatsCommand
     /// <param name="cancellationToken">A <see cref="CancellationToken"/> used to cancel the command.</param>
     /// <typeparam name="T">Specifies the type of data that may be send to the NATS Server.</typeparam>
     /// <returns>A <see cref="ValueTask"/> that represents the asynchronous send operation.</returns>
-    ValueTask PublishAsync<T>(NatsMsg<T> msg, CancellationToken cancellationToken = default);
+    ValueTask PublishAsync<T>(in NatsMsg<T> msg, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Initiates a subscription to a subject, optionally joining a distributed queue group.
@@ -69,6 +67,4 @@ public interface INatsCommand
     /// <typeparam name="T">Specifies the type of data that may be received from the NATS Server.</typeparam>
     /// <returns>A <see cref="ValueTask{TResult}"/> that represents the asynchronous send operation.</returns>
     ValueTask<NatsSub<T>> SubscribeAsync<T>(string subject, in NatsSubOpts? opts = default, CancellationToken cancellationToken = default);
-
-    IObservable<T> AsObservable<T>(string subject);
 }

@@ -1,6 +1,5 @@
 using System.Buffers;
 using System.Collections.Concurrent;
-using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 
 namespace NATS.Client.Core;
@@ -10,7 +9,7 @@ internal sealed class SubscriptionManager : IAsyncDisposable
     private readonly ILogger<SubscriptionManager> _logger;
     private readonly object _gate = new();
     private readonly NatsConnection _connection;
-    private readonly ConcurrentDictionary<int, WeakReference<NatsSubBase>> _bySid = new();
+    private readonly ConcurrentDictionary<int, WeakReference<INatsSub>> _bySid = new();
     private readonly CancellationTokenSource _cts;
     private readonly Task _timer;
     private readonly TimeSpan _cleanupInterval;
@@ -26,7 +25,7 @@ internal sealed class SubscriptionManager : IAsyncDisposable
         _timer = Task.Run(CleanupAsync, _cts.Token);
     }
 
-    public IEnumerable<(int Sid, string Subject, string? QueueGroup)> GetExistingSubscriptions()
+    public IEnumerable<(int Sid, string Subject, string? QueueGroup, int? maxMsgs)> GetExistingSubscriptions()
     {
         lock (_gate)
         {
@@ -34,26 +33,33 @@ internal sealed class SubscriptionManager : IAsyncDisposable
             {
                 if (subRef.TryGetTarget(out var sub))
                 {
-                    yield return (sub.Sid, sub.Subject, sub.QueueGroup);
+                    yield return (sub.Sid, sub.Subject, sub.QueueGroup, sub.PendingMsgs);
                 }
             }
         }
     }
 
-    public async ValueTask<NatsSub> AddAsync(string subject, string? queueGroup, CancellationToken cancellationToken)
-    {
-        var sid = Interlocked.Increment(ref _sid);
-        var sub = new NatsSub(_connection, this, subject, queueGroup, sid);
-        await SubAsync(subject, queueGroup, cancellationToken, sid, sub).ConfigureAwait(false);
-        return sub;
-    }
+    public int GetNextSid() => Interlocked.Increment(ref _sid);
 
-    public async ValueTask<NatsSub<T>> AddAsync<T>(string subject, string? queueGroup, INatsSerializer serializer, CancellationToken cancellationToken)
+    public async ValueTask<T> SubscribeAsync<T>(string subject, NatsSubOpts? opts, T sub, CancellationToken cancellationToken)
+        where T : INatsSub
     {
-        var sid = Interlocked.Increment(ref _sid);
-        var sub = new NatsSub<T>(_connection, this, subject, queueGroup, sid, serializer);
-        await SubAsync(subject, queueGroup, cancellationToken, sid, sub).ConfigureAwait(false);
-        return sub;
+        lock (_gate)
+        {
+            _bySid[sub.Sid] = new WeakReference<INatsSub>(sub);
+        }
+
+        try
+        {
+            await _connection.SubscribeCoreAsync(sub.Sid, subject, opts?.QueueGroup, opts?.MaxMsgs, cancellationToken).ConfigureAwait(false);
+            sub.Ready();
+            return sub;
+        }
+        catch
+        {
+            await sub.DisposeAsync().ConfigureAwait(false);
+            throw;
+        }
     }
 
     public ValueTask PublishToClientHandlersAsync(string subject, string? replyTo, int sid, in ReadOnlySequence<byte>? headersBuffer, in ReadOnlySequence<byte> payloadBuffer)
@@ -98,7 +104,7 @@ internal sealed class SubscriptionManager : IAsyncDisposable
     {
         _cts.Cancel();
 
-        WeakReference<NatsSubBase>[] subRefs;
+        WeakReference<INatsSub>[] subRefs;
         lock (_gate)
         {
             subRefs = _bySid.Values.ToArray();
@@ -112,7 +118,7 @@ internal sealed class SubscriptionManager : IAsyncDisposable
         }
     }
 
-    internal ValueTask RemoveAsync(int sid)
+    public ValueTask RemoveAsync(int sid)
     {
         lock (_gate)
             _bySid.Remove(sid, out _);
@@ -161,25 +167,6 @@ internal sealed class SubscriptionManager : IAsyncDisposable
             {
                 _logger.LogWarning($"Error unsubscribing during cleanup: {e.GetBaseException().Message}");
             }
-        }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private async Task SubAsync(string subject, string? queueGroup, CancellationToken cancellationToken, int sid, NatsSubBase sub)
-    {
-        lock (_gate)
-        {
-            _bySid[sid] = new WeakReference<NatsSubBase>(sub);
-        }
-
-        try
-        {
-            await _connection.SubscribeCoreAsync(sid, subject, queueGroup, cancellationToken).ConfigureAwait(false);
-        }
-        catch
-        {
-            await sub.DisposeAsync().ConfigureAwait(false);
-            throw;
         }
     }
 }

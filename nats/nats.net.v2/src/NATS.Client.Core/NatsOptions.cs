@@ -1,6 +1,7 @@
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using NATS.Client.Core.Internal;
 
 namespace NATS.Client.Core;
 
@@ -73,7 +74,7 @@ public sealed record NatsOptions
         WriterBufferSize: 65534, // 32767
         ReaderBufferSize: 1048576,
         UseThreadPoolCallback: false,
-        InboxPrefix: "_INBOX.",
+        InboxPrefix: "_INBOX",
         NoRandomize: false,
         PingInterval: TimeSpan.FromMinutes(2),
         MaxPingOut: 2,
