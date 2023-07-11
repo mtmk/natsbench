@@ -20,8 +20,10 @@ jobs:
           echo "$(pwd)/tools-nats-server" >> $GITHUB_PATH
       - name: chk
         run: |
+          uname -a
           echo $PATH
           ls -l "$(pwd)/tools-nats-server"
+          file "$(pwd)/tools-nats-server/nats-server"
       - name: nats-server
         run: nats-server -v
 #          curl -Ls 'https://binaries.nats.dev/binary/github.com/nats-io/nats-server/v2?os=windows&arch=amd64&version=dev' -o nats-server.exe
