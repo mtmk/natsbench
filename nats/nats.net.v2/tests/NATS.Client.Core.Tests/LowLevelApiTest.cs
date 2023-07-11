@@ -16,14 +16,14 @@ public class LowLevelApiTest
         var nats = server.CreateClientConnection();
 
         var builder = new NatsSubCustomTestBuilder(_output);
-        NatsSubTest sub = await nats.SubAsync<NatsSubTest>("foo.*", opts: default, builder);
+        var sub = await nats.SubAsync<NatsSubTest>("foo.*", opts: default, builder);
 
         await Retry.Until(
             "subscription is ready",
             () => builder.IsSynced,
             async () => await nats.PubAsync("foo.sync"));
 
-        for (int i = 0; i < 10; i++)
+        for (var i = 0; i < 10; i++)
         {
             var headers = new NatsHeaders { { "X-Test", $"value-{i}" } };
             await nats.PubModelAsync<int>($"foo.data{i}", i, JsonNatsSerializer.Default, "bar", headers);
@@ -41,9 +41,9 @@ public class LowLevelApiTest
     {
         private readonly NatsSubCustomTestBuilder _builder;
         private readonly ITestOutputHelper _output;
-        private readonly SubscriptionManager _manager;
+        private readonly ISubscriptionManager _manager;
 
-        public NatsSubTest(NatsSubCustomTestBuilder builder, ITestOutputHelper output, SubscriptionManager manager)
+        public NatsSubTest(NatsSubCustomTestBuilder builder, ITestOutputHelper output, ISubscriptionManager manager)
         {
             _builder = builder;
             _output = output;
@@ -62,7 +62,7 @@ public class LowLevelApiTest
         {
         }
 
-        public ValueTask DisposeAsync() => _manager.DisposeAsync();
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
         public ValueTask ReceiveAsync(string subject, string? replyTo, ReadOnlySequence<byte>? headersBuffer, ReadOnlySequence<byte> payloadBuffer)
         {
@@ -76,8 +76,8 @@ public class LowLevelApiTest
             }
             else
             {
-                byte[]? headers = headersBuffer?.ToArray();
-                byte[] payload = payloadBuffer.ToArray();
+                var headers = headersBuffer?.ToArray();
+                var payload = payloadBuffer.ToArray();
 
                 var sb = new StringBuilder();
                 sb.AppendLine($"Subject: {subject}");
@@ -119,7 +119,7 @@ public class LowLevelApiTest
             }
         }
 
-        public NatsSubTest Build(string subject, NatsSubOpts? opts, NatsConnection connection, SubscriptionManager manager)
+        public NatsSubTest Build(string subject, NatsSubOpts? opts, NatsConnection connection, ISubscriptionManager manager, CancellationToken cancellationToken)
         {
             return new NatsSubTest(builder: this, _output, manager);
         }
@@ -130,7 +130,8 @@ public class LowLevelApiTest
 
         public void MessageReceived(string message)
         {
-            lock (_messages) _messages.Add(message);
+            lock (_messages)
+                _messages.Add(message);
         }
     }
 }

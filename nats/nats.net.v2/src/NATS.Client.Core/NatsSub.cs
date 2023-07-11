@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Threading.Channels;
+using NATS.Client.Core.Internal;
 
 namespace NATS.Client.Core;
 
@@ -9,35 +10,55 @@ internal enum NatsSubEndReason
     MaxMsgs,
     Timeout,
     IdleTimeout,
+    StartUpTimeout,
+    Cancelled,
 }
 
 public abstract class NatsSubBase : INatsSub
 {
-    private readonly int _sid;
-    private readonly SubscriptionManager _manager;
+    private readonly ISubscriptionManager _manager;
     private readonly Timer? _timeoutTimer;
     private readonly Timer? _idleTimeoutTimer;
     private readonly TimeSpan _idleTimeout;
+    private readonly TimeSpan _startUpTimeout;
     private readonly TimeSpan _timeout;
     private readonly bool _countPendingMsgs;
+    private readonly CancellationTokenSource? _cts;
+    private volatile Timer? _startUpTimeoutTimer;
     private bool _disposed;
     private bool _unsubscribed;
     private bool _endSubscription;
     private int _endReasonRaw;
     private int _pendingMsgs;
 
-    internal NatsSubBase(NatsConnection connection, SubscriptionManager manager, string subject, NatsSubOpts? opts, int sid)
+    internal NatsSubBase(
+        NatsConnection connection,
+        ISubscriptionManager manager,
+        string subject,
+        NatsSubOpts? opts,
+        CancellationToken cancellationToken = default)
     {
-        _sid = sid;
         _manager = manager;
         _pendingMsgs = opts is { MaxMsgs: > 0 } ? opts.Value.MaxMsgs ?? -1 : -1;
         _countPendingMsgs = _pendingMsgs > 0;
         _idleTimeout = opts?.IdleTimeout ?? default;
+        _startUpTimeout = opts?.StartUpTimeout ?? default;
         _timeout = opts?.Timeout ?? default;
 
         Connection = connection;
         Subject = subject;
         QueueGroup = opts?.QueueGroup;
+
+        if ((opts?.CanBeCancelled ?? false) && cancellationToken != default)
+        {
+            _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            _cts.Token.UnsafeRegister(
+                static (self, _) =>
+                {
+                    ((NatsSubBase) self!).EndSubscription(NatsSubEndReason.Cancelled);
+                },
+                this);
+        }
 
         // Only allocate timers if necessary to reduce GC pressure
         if (_idleTimeout != default)
@@ -52,6 +73,11 @@ public abstract class NatsSubBase : INatsSub
             // Since awaiting unsubscribe isn't crucial Timer approach is currently acceptable.
             // If we need an async loop in the future cancellation token source approach can be used.
             _idleTimeoutTimer = new Timer(_ => EndSubscription(NatsSubEndReason.IdleTimeout));
+        }
+
+        if (_startUpTimeout != default)
+        {
+            _startUpTimeoutTimer = new Timer(_ => EndSubscription(NatsSubEndReason.StartUpTimeout));
         }
 
         if (_timeout != default)
@@ -76,15 +102,18 @@ public abstract class NatsSubBase : INatsSub
     // since INatsSub is marked as internal.
     int? INatsSub.PendingMsgs => _pendingMsgs == -1 ? null : Volatile.Read(ref _pendingMsgs);
 
-    int INatsSub.Sid => _sid;
-
     internal NatsSubEndReason EndReason => (NatsSubEndReason)Volatile.Read(ref _endReasonRaw);
 
     protected NatsConnection Connection { get; }
 
     void INatsSub.Ready()
     {
-        _idleTimeoutTimer?.Change(_idleTimeout, Timeout.InfiniteTimeSpan);
+        // Let idle timer start with the first message, in case
+        // we're allowed to wait longer for the first message.
+        if (_startUpTimeoutTimer == null)
+            _idleTimeoutTimer?.Change(_idleTimeout, Timeout.InfiniteTimeSpan);
+
+        _startUpTimeoutTimer?.Change(_startUpTimeout, Timeout.InfiniteTimeSpan);
         _timeoutTimer?.Change(dueTime: _timeout, period: Timeout.InfiniteTimeSpan);
     }
 
@@ -104,9 +133,10 @@ public abstract class NatsSubBase : INatsSub
 
         _timeoutTimer?.Change(Timeout.Infinite, Timeout.Infinite);
         _idleTimeoutTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+        _startUpTimeoutTimer?.Change(Timeout.Infinite, Timeout.Infinite);
         TryComplete();
 
-        return _manager.RemoveAsync(_sid);
+        return _manager.RemoveAsync(this);
     }
 
     public ValueTask DisposeAsync()
@@ -122,6 +152,9 @@ public abstract class NatsSubBase : INatsSub
 
         _timeoutTimer?.Dispose();
         _idleTimeoutTimer?.Dispose();
+        _startUpTimeoutTimer?.Dispose();
+
+        _cts?.Dispose();
 
         return UnsubscribeAsync();
     }
@@ -138,11 +171,19 @@ public abstract class NatsSubBase : INatsSub
     protected void ResetIdleTimeout()
     {
         _idleTimeoutTimer?.Change(dueTime: _idleTimeout, period: Timeout.InfiniteTimeSpan);
+
+        // Once the first message is received we don't need to keep resetting the start-up timer
+        if (_startUpTimeoutTimer != null)
+        {
+            _startUpTimeoutTimer.Change(dueTime: Timeout.InfiniteTimeSpan, period: Timeout.InfiniteTimeSpan);
+            _startUpTimeoutTimer = null;
+        }
     }
 
     protected void DecrementMaxMsgs()
     {
-        if (!_countPendingMsgs) return;
+        if (!_countPendingMsgs)
+            return;
         var maxMsgs = Interlocked.Decrement(ref _pendingMsgs);
         if (maxMsgs == 0)
             EndSubscription(NatsSubEndReason.MaxMsgs);
@@ -179,8 +220,8 @@ public sealed class NatsSub : NatsSubBase
         AllowSynchronousContinuations = false,
     });
 
-    internal NatsSub(NatsConnection connection, SubscriptionManager manager, string subject, NatsSubOpts? opts, int sid)
-        : base(connection, manager, subject, opts, sid)
+    internal NatsSub(NatsConnection connection, ISubscriptionManager manager, string subject, NatsSubOpts? opts, CancellationToken cancellationToken = default)
+        : base(connection, manager, subject, opts, cancellationToken)
     {
     }
 
@@ -208,18 +249,19 @@ public sealed class NatsSub : NatsSubBase
 
 public sealed class NatsSub<T> : NatsSubBase
 {
-    private readonly Channel<NatsMsg<T>> _msgs = Channel.CreateBounded<NatsMsg<T>>(new BoundedChannelOptions(capacity: 1_000)
-    {
-        FullMode = BoundedChannelFullMode.Wait,
-        SingleWriter = true,
-        SingleReader = false,
-        AllowSynchronousContinuations = false,
-    });
+    private readonly Channel<NatsMsg<T?>> _msgs = Channel.CreateBounded<NatsMsg<T?>>(
+        new BoundedChannelOptions(capacity: 1_000)
+        {
+            FullMode = BoundedChannelFullMode.Wait,
+            SingleWriter = true,
+            SingleReader = false,
+            AllowSynchronousContinuations = false,
+        });
 
-    internal NatsSub(NatsConnection connection, SubscriptionManager manager, string subject, NatsSubOpts? opts, int sid, INatsSerializer serializer)
-        : base(connection, manager, subject, opts, sid) => Serializer = serializer;
+    internal NatsSub(NatsConnection connection, ISubscriptionManager manager, string subject, NatsSubOpts? opts, INatsSerializer serializer, CancellationToken cancellationToken = default)
+        : base(connection, manager, subject, opts, cancellationToken) => Serializer = serializer;
 
-    public ChannelReader<NatsMsg<T>> Msgs => _msgs.Reader;
+    public ChannelReader<NatsMsg<T?>> Msgs => _msgs.Reader;
 
     private INatsSerializer Serializer { get; }
 
@@ -227,7 +269,11 @@ public sealed class NatsSub<T> : NatsSubBase
     {
         ResetIdleTimeout();
 
-        var natsMsg = NatsMsg<T>.Build(
+        // We are not handling exceptions here, where there is a possibility of
+        // deserialization exceptions. Currently only way for a user to find out is
+        // to check the logs created by the client. If the logger isn't hooked up
+        // they would be quietly ignored and the message would be lost either way.
+        var natsMsg = NatsMsg<T?>.Build(
             subject,
             replyTo,
             headersBuffer,

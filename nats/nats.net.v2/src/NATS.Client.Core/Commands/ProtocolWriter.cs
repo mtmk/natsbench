@@ -104,7 +104,15 @@ internal sealed class ProtocolWriter
     public void WritePublish<T>(string subject, string? replyTo, NatsHeaders? headers, T? value, INatsSerializer serializer)
     {
         _bufferPayload.Reset();
-        serializer.Serialize(_bufferPayload, value);
+
+        // Consider null as empty payload. This way we are able to transmit null values as sentinels.
+        // Another point is serializer behaviour. For instance JSON serializer seems to serialize null
+        // as a string "null", others might throw exception.
+        if (value != null)
+        {
+            serializer.Serialize(_bufferPayload, value);
+        }
+
         var payload = new ReadOnlySequence<byte>(_bufferPayload.WrittenMemory);
         WritePublish(subject, replyTo, headers, payload);
     }

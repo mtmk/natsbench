@@ -299,6 +299,7 @@ public class NatsProxy : IDisposable
     private readonly List<TcpClient> _clients = new();
     private readonly List<Frame> _frames = new();
     private readonly Stopwatch _watch = new();
+    private int _syncCount;
 
     public NatsProxy(int port, ITestOutputHelper outputHelper)
     {
@@ -312,7 +313,7 @@ public class NatsProxy : IDisposable
             var client = 0;
             while (true)
             {
-                TcpClient tcpClient1 = _tcpListener.AcceptTcpClient();
+                var tcpClient1 = _tcpListener.AcceptTcpClient();
                 TcpClient tcpClient2;
                 lock (_clients)
                 {
@@ -419,10 +420,25 @@ public class NatsProxy : IDisposable
                 }
             }
 
-            lock (_frames) _frames.Clear();
+            lock (_frames)
+                _frames.Clear();
 
             _watch.Restart();
         }
+    }
+
+    public async Task FlushFramesAsync(NatsConnection nats)
+    {
+        var subject = $"_SIGNAL_SYNC_{Interlocked.Increment(ref _syncCount)}";
+
+        await nats.PublishAsync(subject);
+
+        await Retry.Until(
+            "flush sync frame",
+            () => AllFrames.Any(f => f.Message == $"PUB {subject} 0␍␊"));
+
+        lock (_frames)
+            _frames.Clear();
     }
 
     public void Dispose() => _tcpListener.Server.Dispose();
@@ -439,7 +455,8 @@ public class NatsProxy : IDisposable
             return false;
         }
 
-        if (message == null) return false;
+        if (message == null)
+            return false;
 
         if (Regex.IsMatch(message, @"^(INFO|CONNECT|PING|PONG|UNSUB|SUB|\+OK|-ERR)"))
         {
@@ -460,8 +477,10 @@ public class NatsProxy : IDisposable
             while (true)
             {
                 var read = sr.Read(span);
-                if (read == 0) break;
-                if (read == -1) return false;
+                if (read == 0)
+                    break;
+                if (read == -1)
+                    return false;
                 span = span[read..];
             }
 
@@ -504,26 +523,13 @@ public class NatsProxy : IDisposable
     private void AddFrame(Frame frame)
     {
         // Log($"Dump {frame}");
-        lock (_frames) _frames.Add(frame);
+        lock (_frames)
+            _frames.Add(frame);
     }
 
     private void Log(string text) => _outputHelper.WriteLine($"{DateTime.Now:HH:mm:ss.fff} [PROXY] {text}");
 
     public record Frame(TimeSpan Timestamp, int Client, string Origin, string Message);
-
-    private int _syncCount;
-    public async Task FlushFramesAsync(NatsConnection nats)
-    {
-        var c = Interlocked.Increment(ref _syncCount);
-        var subject = $"_SIGNAL_SYNC_{c}";
-
-        await nats.PublishAsync(subject);
-        await Retry.Until(
-            "flush sync frame",
-            () => AllFrames.Any(f => f.Message == $"PUB {subject} 0␍␊"));
-        
-        lock (_frames) _frames.Clear();
-    }
 }
 
 public class NullOutputHelper : ITestOutputHelper

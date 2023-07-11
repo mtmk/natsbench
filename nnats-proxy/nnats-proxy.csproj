@@ -7,5 +7,7 @@
         <Nullable>enable</Nullable>
         <RootNamespace>wiretap</RootNamespace>
     </PropertyGroup>
-
+    <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+        <DefineConstants>OS_WINDOWS</DefineConstants>
+    </PropertyGroup>
 </Project>

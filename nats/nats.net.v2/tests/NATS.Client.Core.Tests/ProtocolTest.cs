@@ -160,14 +160,15 @@ public class ProtocolTest
         // Use a single server to test multiple scenarios to make test runs more efficient
         await using var server = new NatsServer();
         var (nats, proxy) = server.CreateProxiedClientConnection();
+        var sid = 0;
 
         // Auto-unsubscribe after consuming max-msgs
         {
             const int maxMsgs = 99;
             var opts = new NatsSubOpts { MaxMsgs = maxMsgs };
             await using var sub = await nats.SubscribeAsync<int>("foo", opts);
+            sid++;
 
-            var sid = ((INatsSub)sub).Sid;
             await Retry.Until("all frames arrived", () => proxy.Frames.Count >= 2);
             Assert.Equal($"SUB foo {sid}", proxy.Frames[0].Message);
             Assert.Equal($"UNSUB {sid} {maxMsgs}", proxy.Frames[1].Message);
@@ -191,16 +192,13 @@ public class ProtocolTest
             Assert.Equal(NatsSubEndReason.MaxMsgs, sub.EndReason);
         }
 
-        
         // Manual unsubscribe
         {
             await proxy.FlushFramesAsync(nats);
-            
+
             await using var sub = await nats.SubscribeAsync<int>("foo2");
-
+            sid++;
             await sub.UnsubscribeAsync();
-
-            var sid = ((INatsSub)sub).Sid;
 
             await Retry.Until("all frames arrived", () => proxy.ClientFrames.Count == 2);
 
@@ -235,9 +233,9 @@ public class ProtocolTest
             const int pubMsgs = 10;
             var opts = new NatsSubOpts { MaxMsgs = maxMsgs };
             var sub = await nats.SubscribeAsync<int>("foo3", opts);
+            sid++;
             var count = 0;
             var reg = sub.Register(_ => Interlocked.Increment(ref count));
-            var sid = ((INatsSub)sub).Sid;
             await Retry.Until("subscribed", () => proxy.Frames.Any(f => f.Message == $"SUB foo3 {sid}"));
 
             for (var i = 0; i < pubMsgs; i++)
@@ -278,21 +276,6 @@ public class ProtocolTest
 
             await sub.DisposeAsync();
             await reg;
-        }
-    }
-}
-
-public static class FrameEnumerable
-{
-    public static IEnumerable<NatsProxy.Frame> TakeFramesIncludingAndAfter(this IEnumerable<NatsProxy.Frame> frames, string message)
-    {
-        var start = false;
-        foreach (var frame in frames)
-        {
-            if (frame.Message == message)
-                start = true;
-            if (start)
-                yield return frame;
         }
     }
 }

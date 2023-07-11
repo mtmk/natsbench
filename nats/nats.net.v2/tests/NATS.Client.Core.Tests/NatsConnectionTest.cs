@@ -108,17 +108,22 @@ public abstract partial class NatsConnectionTest
         var text = new StringBuilder(minSize).Insert(0, "a", minSize).ToString();
 
         var sync = 0;
-        await using var replyHandle = await subConnection.ReplyAsync<int, string>(subject, x =>
+        var sub = await subConnection.SubscribeAsync<int>(subject);
+        var reg = sub.Register(async m =>
         {
-            if (x < 10)
+            if (m.Data < 10)
             {
-                Interlocked.Exchange(ref sync, x);
-                return "sync";
+                Interlocked.Exchange(ref sync, m.Data);
+                await m.ReplyAsync("sync");
             }
 
-            if (x == 100)
-                throw new Exception();
-            return text + x;
+            if (m.Data == 100)
+            {
+                await m.ReplyAsync(default(string));
+                return;
+            }
+
+            await m.ReplyAsync(text + m.Data);
         });
 
         await Retry.Until(
@@ -128,20 +133,18 @@ public abstract partial class NatsConnectionTest
             retryDelay: TimeSpan.FromSeconds(1));
 
         var v = await pubConnection.RequestAsync<int, string>(subject, 9999);
-        v.Should().Be(text + 9999);
+        v?.Data.Should().Be(text + 9999);
 
-        // server exception handling
-        // TODO: What's the point of server request exceptions?
-        // await Assert.ThrowsAsync<NatsException>(async () =>
-        // {
-        //     await pubConnection.RequestAsync<int, string>(key, 100);
-        // });
+        // server exception handling: respond with the default value of the type.
+        var response = await pubConnection.RequestAsync<int, string>(subject, 100);
+        Assert.Null(response?.Data);
 
         // timeout check
-        await Assert.ThrowsAsync<OperationCanceledException>(async () =>
-        {
-            await pubConnection.RequestAsync<int, string>("foo", 10, timeout: TimeSpan.FromSeconds(2));
-        });
+        var noReply = await pubConnection.RequestAsync<int, string>("foo", 10, replyOpts: new NatsSubOpts { Timeout = TimeSpan.FromSeconds(1) });
+        Assert.Null(noReply);
+
+        await sub.DisposeAsync();
+        await reg;
     }
 
     [Fact]

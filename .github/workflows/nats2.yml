@@ -1,0 +1,19 @@
+name: nats
+on: workflow_dispatch
+jobs:
+
+  ubuntu_build:
+    strategy:
+      fail-fast: false
+      matrix:
+        config: [ dev, main ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: tools
+        run: |
+          mkdir tools-nats-server
+          cd tools-nats-server
+          curl -Ls 'https://binaries.nats.dev/binary/github.com/nats-io/nats-server/v2?os=windows&arch=amd64&version=dev' -o nats-server.exe
+          echo "$(pwd)/tools-nats-server" >> $GITHUB_PATH
+      - name: nats-server
+        run: nats-server -v

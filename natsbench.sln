@@ -40,6 +40,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workflows", "workflows", "{
 		.github\workflows\test2.yml = .github\workflows\test2.yml
 		.github\workflows\nats.yml = .github\workflows\nats.yml
 		.github\workflows\test3.yml = .github\workflows\test3.yml
+		.github\workflows\nats2.yml = .github\workflows\nats2.yml
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NATS.Client.Core", "nats\nats.net.v2\src\NATS.Client.Core\NATS.Client.Core.csproj", "{8A9C3E5A-E722-4053-AB7C-E49D9EDE9A6E}"
@@ -56,6 +57,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".", ".", "{A84A5100-74F8-43
 		macos.patch = macos.patch
 		X.cs = X.cs
 	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "app_nats2", "app_nats2\app_nats2.csproj", "{60DB3842-54E9-4701-BD97-682A137CF151}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -122,6 +125,10 @@ Global
 		{2B3E2785-6649-42D3-AF29-796E39A3A869}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2B3E2785-6649-42D3-AF29-796E39A3A869}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2B3E2785-6649-42D3-AF29-796E39A3A869}.Release|Any CPU.Build.0 = Release|Any CPU
+		{60DB3842-54E9-4701-BD97-682A137CF151}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{60DB3842-54E9-4701-BD97-682A137CF151}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{60DB3842-54E9-4701-BD97-682A137CF151}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{60DB3842-54E9-4701-BD97-682A137CF151}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{60BEF34F-572D-477F-943F-16B869FDE06B} = {B3CCFF33-B33D-45E4-AEE1-778D5A2347D1}

@@ -4,8 +4,6 @@
         <TargetFramework>net6.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-
-        <!-- TODO: Unsafe really needed? -->
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 
         <!-- NuGet Packaging -->
@@ -15,7 +13,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <None Include="../../Icon.png" Pack="true" PackagePath="/" />
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.1" />
         <PackageReference Include="Microsoft.Extensions.Primitives" Version="6.0.0" />
         <PackageReference Include="Microsoft.VisualStudio.Threading.Analyzers" Version="17.1.46">

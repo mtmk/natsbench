@@ -1,6 +1,5 @@
 using System.Buffers;
 using System.Diagnostics;
-using System.Text;
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 using NATS.Client.Core.Commands;
@@ -52,6 +51,8 @@ public partial class NatsConnection : IAsyncDisposable, INatsConnection
     private ClientOptions _clientOptions;
     private UserCredentials? _userCredentials;
 
+    internal string InboxPrefix { get; }
+
     public NatsConnection()
         : this(NatsOptions.Default)
     {
@@ -63,17 +64,17 @@ public partial class NatsConnection : IAsyncDisposable, INatsConnection
         ConnectionState = NatsConnectionState.Closed;
         _waitForOpenConnection = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _disposedCancellationTokenSource = new CancellationTokenSource();
-        _pool = new ObjectPool(options.CommandPoolSize);
+        _pool = new ObjectPool(options.ObjectPoolSize);
         _cancellationTimerPool = new CancellationTimerPool(_pool, _disposedCancellationTokenSource.Token);
         _name = options.Name;
         Counter = new ConnectionStatsCounter();
         _writerState = new WriterState(options);
         _commandWriter = _writerState.CommandBuffer.Writer;
-        _subscriptionManager = new SubscriptionManager(this);
+        InboxPrefix = $"{options.InboxPrefix}.{Guid.NewGuid():n}.";
+        _subscriptionManager = new SubscriptionManager(this, InboxPrefix);
         _logger = options.LoggerFactory.CreateLogger<NatsConnection>();
         _clientOptions = new ClientOptions(Options);
         HeaderParser = new HeaderParser(options.HeaderEncoding);
-        InboxSubscriber = new InboxSubscriber(this, prefix1: options.InboxPrefix);
     }
 
     // events
@@ -90,8 +91,6 @@ public partial class NatsConnection : IAsyncDisposable, INatsConnection
     public ServerInfo? ServerInfo { get; internal set; } // server info is set when received INFO
 
     public HeaderParser HeaderParser { get; }
-
-    internal InboxSubscriber InboxSubscriber { get; }
 
     internal ObjectPool ObjectPool => _pool;
 
@@ -572,13 +571,13 @@ public partial class NatsConnection : IAsyncDisposable, INatsConnection
         }
         else
         {
-            // TODO: throw exception
+            throw new NatsException("Can't write to command channel");
         }
     }
 
     private async ValueTask EnqueueCommandAsync(ICommand command)
     {
-        RETRY:
+    RETRY:
         if (_commandWriter.TryWrite(command))
         {
             Interlocked.Increment(ref Counter.PendingMessages);
