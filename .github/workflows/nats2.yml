@@ -1,4 +1,4 @@
-name: nats
+name: nats2
 on: workflow_dispatch
 jobs:
 
