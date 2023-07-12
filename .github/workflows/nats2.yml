@@ -43,6 +43,6 @@ jobs:
           cd tools
           curl -sf https://binaries.nats.dev/nats-io/nats-server/v2@${{ matrix.config.branch }} | PREFIX=. sh
           mv nats-server nats-server.exe
-          echo "$(pwd)" | tee -a "$GITHUB_PATH"
+          cygpath -w "$(pwd)" | tee -a "$GITHUB_PATH"
       - name: nats-server version
         run: nats-server -v
