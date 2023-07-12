@@ -1,0 +1,20 @@
+on: workflow_dispatch
+jobs:
+
+  windows_dl:
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - branch: dev
+          - branch: main
+    runs-on: windows-latest
+    steps:
+      - shell: bash
+        run: |
+          mkdir tools
+          cd tools
+          curl -sf https://binaries.nats.dev/nats-io/nats-server/v2@${{ matrix.config.branch }} | PREFIX=. sh
+          mv nats-server nats-server.exe
+          cygpath -w "$(pwd)" | tee -a "$GITHUB_PATH"
+      - run: nats-server -v
