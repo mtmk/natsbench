@@ -12,8 +12,7 @@ jobs:
     steps:
       - shell: bash
         run: |
-          mkdir tools
-          cd tools
+          mkdir tools && cd tools
           curl -sf https://binaries.nats.dev/nats-io/nats-server/v2@${{ matrix.config.branch }} | PREFIX=. sh
           mv nats-server nats-server.exe
           cygpath -w "$(pwd)" | tee -a "$GITHUB_PATH"
