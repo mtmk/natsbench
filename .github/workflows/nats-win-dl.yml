@@ -6,7 +6,7 @@ jobs:
       - shell: bash
         run: |
           mkdir -p tmp/bin && cd $_
-          curl -sf https://binaries.nats.dev/nats-io/nats-server/v2@${{ matrix.config.branch }} | PREFIX=. sh
+          curl -sf https://binaries.nats.dev/nats-io/nats-server/v2@main | PREFIX=. sh
           mv nats-server nats-server.exe
           cygpath -w "$(pwd)" | tee -a "$GITHUB_PATH"
       - run: nats-server -v
