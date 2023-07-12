@@ -4,8 +4,7 @@ permissions:
   contents: write
 
 jobs:
-  nuget:
-    name: dotnet
+  git_tag:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
