@@ -1,4 +1,5 @@
 # natsbench
+## core
 https://docs.nats.io/reference/reference-protocols/nats-protocol
 ```
 S: INFO {"option_name":option_value,...}␍␊
@@ -13,4 +14,12 @@ B: PING␍␊
 B: PONG␍␊
 S: +OK␍␊
 S: -ERR <error message>␍␊
+```
+## js
+```
+SUB: $JS.API.STREAM.CREATE.{stream}
+REQ: jetstream/api/v1/stream_create_request
+RES: jetstream/api/v1/stream_create_response
+
+
 ```
