@@ -23,4 +23,5 @@ RES: jetstream/api/v1/stream_create_response
 
 SUB: LIST
 SUB: GET
+SUB: DELETE
 ```
