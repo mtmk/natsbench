@@ -22,4 +22,5 @@ REQ: jetstream/api/v1/stream_create_request
 RES: jetstream/api/v1/stream_create_response
 
 SUB: LIST
+SUB: GET
 ```
