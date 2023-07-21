@@ -2,8 +2,8 @@
 using System.Diagnostics;
 using NATS.Client.Core;
 
-var subject = args[0];
-var msgs = int.Parse(args[1]);
+var subject = "foo";
+var msgs = 1_000_000;
 var size = 128;
 
 Console.WriteLine($"Starting [subject={subject}, msgs={msgs:n0}, msgsize={size}]");
