@@ -12,6 +12,7 @@ internal enum NatsSubEndReason
     IdleTimeout,
     StartUpTimeout,
     Cancelled,
+    Exception,
 }
 
 public abstract class NatsSubBase : INatsSub
@@ -30,6 +31,7 @@ public abstract class NatsSubBase : INatsSub
     private bool _endSubscription;
     private int _endReasonRaw;
     private int _pendingMsgs;
+    private Exception? _exception = null;
 
     internal NatsSubBase(
         NatsConnection connection,
@@ -55,7 +57,7 @@ public abstract class NatsSubBase : INatsSub
             _cts.Token.UnsafeRegister(
                 static (self, _) =>
                 {
-                    ((NatsSubBase) self!).EndSubscription(NatsSubEndReason.Cancelled);
+                    ((NatsSubBase)self!).EndSubscription(NatsSubEndReason.Cancelled);
                 },
                 this);
         }
@@ -150,13 +152,15 @@ public abstract class NatsSubBase : INatsSub
 
         GC.SuppressFinalize(this);
 
+        var unsubscribeAsync = UnsubscribeAsync();
+
         _timeoutTimer?.Dispose();
         _idleTimeoutTimer?.Dispose();
         _startUpTimeoutTimer?.Dispose();
 
         _cts?.Dispose();
 
-        return UnsubscribeAsync();
+        return unsubscribeAsync;
     }
 
     ValueTask INatsSub.ReceiveAsync(
@@ -167,6 +171,14 @@ public abstract class NatsSubBase : INatsSub
         ReceiveInternalAsync(subject, replyTo, headersBuffer, payloadBuffer);
 
     protected abstract ValueTask ReceiveInternalAsync(string subject, string? replyTo, ReadOnlySequence<byte>? headersBuffer, ReadOnlySequence<byte> payloadBuffer);
+
+    public Exception? Exception => Volatile.Read(ref _exception);
+
+    protected void SetException(Exception exception)
+    {
+        Interlocked.Exchange(ref _exception, exception);
+        EndSubscription(NatsSubEndReason.Exception);
+    }
 
     protected void ResetIdleTimeout()
     {
@@ -273,19 +285,49 @@ public sealed class NatsSub<T> : NatsSubBase
         // deserialization exceptions. Currently only way for a user to find out is
         // to check the logs created by the client. If the logger isn't hooked up
         // they would be quietly ignored and the message would be lost either way.
-        var natsMsg = NatsMsg<T?>.Build(
-            subject,
-            replyTo,
-            headersBuffer,
-            payloadBuffer,
-            Connection,
-            Connection.HeaderParser,
-            Serializer);
+        try
+        {
+            var natsMsg = NatsMsg<T?>.Build(
+                subject,
+                replyTo,
+                headersBuffer,
+                payloadBuffer,
+                Connection,
+                Connection.HeaderParser,
+                Serializer);
 
-        await _msgs.Writer.WriteAsync(natsMsg).ConfigureAwait(false);
+            await _msgs.Writer.WriteAsync(natsMsg).ConfigureAwait(false);
 
-        DecrementMaxMsgs();
+            DecrementMaxMsgs();
+        }
+        catch (Exception e)
+        {
+            var payload = new Memory<byte>(new byte[payloadBuffer.Length]);
+            payloadBuffer.CopyTo(payload.Span);
+
+            Memory<byte> headers = default;
+            if (headersBuffer != null)
+            {
+                headers = new Memory<byte>(new byte[headersBuffer.Value.Length]);
+            }
+
+            SetException(new NatsSubException($"Message error: {e.Message}", e, payload, headers));
+        }
     }
 
     protected override void TryComplete() => _msgs.Writer.TryComplete();
+}
+
+public class NatsSubException : NatsException
+{
+    public NatsSubException(string message, Exception exception, Memory<byte> payload, Memory<byte> headers)
+        : base(message, exception)
+    {
+        Payload = payload;
+        Headers = headers;
+    }
+
+    public Memory<byte> Payload { get; }
+
+    public Memory<byte> Headers { get; }
 }

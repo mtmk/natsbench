@@ -18,6 +18,7 @@ public class NatsClient
     private readonly ConcurrentDictionary<int,ChannelWriter<Msg>> _writers;
     private volatile int _sid;
     private volatile bool _logCtrl;
+    private volatile bool _logDump;
 
     private NatsClient(
         string url,
@@ -174,6 +175,11 @@ public class NatsClient
     [Conditional("DEBUG")]
     public void Log(string name, string? message, bool tag, string suffix, bool noTagIndent)
     {
+        if (!_logDump && name is "RX" or "TX")
+        {
+            return;
+        }
+        
         if (!_logCtrl
             && message != null
             && Regex.IsMatch(message, @"^(?:PING|PONG|CONNECT|INFO|\+OK)"))
@@ -310,10 +316,36 @@ public class NatsClient
         }
         SendLine(payload);
     }
+    
+    public string Req(string subject, string payload)
+    {
+        var sid = Interlocked.Increment(ref _sid);
+        SendLine($"SUB _inbox {sid}");
+        SendLine($"UNSUB {sid} 1");
+        var channel = Channel.CreateUnbounded<Msg>();
+        ChannelWriter<Msg> writer = channel.Writer;
+        _writers[sid] = writer;
+        Pub(subject, "_inbox", payload);
+        while (true)
+        {
+            Thread.Sleep(10);
+            if (channel.Reader.TryRead(out var response))
+            {
+                SendLine($"UNSUB {sid}");
+                return response.Payload;
+            }
+        }
+    }
 
     public bool Ctrl => _logCtrl;
     
     public void CtrlOn() => _logCtrl = true;
     
     public void CtrlOff() => _logCtrl = false;
+
+    public bool Dump => _logDump;
+    
+    public void DumpOn() => _logDump = true;
+    
+    public void DumpOff() => _logDump = false;
 }

@@ -178,6 +178,7 @@ public class Program
                         break;
                     default:
                         sb.Append('.');
+                        // sb.Append(Convert.ToString(c, 16));
                         break;
                 }
             }

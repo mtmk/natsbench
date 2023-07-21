@@ -10,5 +10,9 @@
     <ItemGroup>
         <PackageReference Include="BenchmarkDotNet" Version="0.13.5" />
     </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\clientlib1\clientlib1.csproj" />
+    </ItemGroup>
     
 </Project>
