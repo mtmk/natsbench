@@ -27,7 +27,7 @@ internal sealed class AsyncPublishCommand<T> : AsyncCommandBase<AsyncPublishComm
         result._headers = headers;
         result._value = value;
         result._serializer = serializer;
-        result.SetCancellationTimer(timer);
+        //result.SetCancellationTimer(timer);
 
         return result;
     }

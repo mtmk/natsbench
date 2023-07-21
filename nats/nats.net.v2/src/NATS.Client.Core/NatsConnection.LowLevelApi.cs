@@ -6,7 +6,7 @@ namespace NATS.Client.Core;
 
 public partial class NatsConnection
 {
-    internal ValueTask PubAsync(string subject, string? replyTo = default, ReadOnlySequence<byte> payload = default, NatsHeaders? headers = default, CancellationToken cancellationToken = default)
+    public ValueTask PubAsync(string subject, string? replyTo = default, ReadOnlySequence<byte> payload = default, NatsHeaders? headers = default, CancellationToken cancellationToken = default)
     {
         headers?.SetReadOnly();
 

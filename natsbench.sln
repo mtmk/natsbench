@@ -59,6 +59,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".", ".", "{A84A5100-74F8-43
 		macos.patch = macos.patch
 		X.cs = X.cs
 		version.txt = version.txt
+		sync_alternats.bat = sync_alternats.bat
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "app_nats2", "app_nats2\app_nats2.csproj", "{60DB3842-54E9-4701-BD97-682A137CF151}"
@@ -76,6 +77,10 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "njsclient", "njsclient\njsclient.csproj", "{D39B708A-20FA-451B-832C-BB197E1339F6}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "nnatsbench", "nnatsbench\nnatsbench.csproj", "{D318BABB-5CDE-4F46-8882-8B6DB3B62418}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "AlterNats", "AlterNats", "{B0CFF32E-899A-44FD-A418-6D50E5B7CF8F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AlterNats", "AlterNats\AlterNats\AlterNats.csproj", "{A00D662E-2EBD-4B15-8DDA-52401B86A150}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -174,6 +179,10 @@ Global
 		{D318BABB-5CDE-4F46-8882-8B6DB3B62418}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D318BABB-5CDE-4F46-8882-8B6DB3B62418}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D318BABB-5CDE-4F46-8882-8B6DB3B62418}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A00D662E-2EBD-4B15-8DDA-52401B86A150}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A00D662E-2EBD-4B15-8DDA-52401B86A150}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A00D662E-2EBD-4B15-8DDA-52401B86A150}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A00D662E-2EBD-4B15-8DDA-52401B86A150}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{60BEF34F-572D-477F-943F-16B869FDE06B} = {B3CCFF33-B33D-45E4-AEE1-778D5A2347D1}
@@ -182,5 +191,6 @@ Global
 		{46A57327-4A6D-4751-8F81-9FC9591B45AF} = {8670B72D-186A-4BB9-B545-2BB84BD9445E}
 		{80F1A6B8-A515-4103-B9B5-86F5CB33E51F} = {8670B72D-186A-4BB9-B545-2BB84BD9445E}
 		{2168C48D-61C3-4498-A7E3-81152680201D} = {8670B72D-186A-4BB9-B545-2BB84BD9445E}
+		{A00D662E-2EBD-4B15-8DDA-52401B86A150} = {B0CFF32E-899A-44FD-A418-6D50E5B7CF8F}
 	EndGlobalSection
 EndGlobal

@@ -437,7 +437,7 @@ internal sealed class NatsReadProtocolProcessor : IAsyncDisposable
         Split(msgHeader, out var sidBytes, out msgHeader);
         Split(msgHeader, out var replyToOrSizeBytes, out msgHeader);
 
-        var subject = Encoding.ASCII.GetString(subjectBytes);
+        var subject = "X";//Encoding.ASCII.GetString(subjectBytes);
 
         if (msgHeader.Length == 0)
         {
