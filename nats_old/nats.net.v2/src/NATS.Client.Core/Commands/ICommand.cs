@@ -7,7 +7,7 @@ internal interface ICommand
 {
     bool IsCanceled { get; }
 
-    void SetCancellationTimer(CancellationTimer timer);
+    // void SetCancellationTimer(CancellationTimer timer);
 
     void Return(ObjectPool pool);
 

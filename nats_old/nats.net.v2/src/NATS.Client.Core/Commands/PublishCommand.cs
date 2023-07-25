@@ -24,7 +24,7 @@ internal sealed class PublishCommand<T> : CommandBase<PublishCommand<T>>
         result._subject = subject;
         result._value = value;
         result._serializer = serializer;
-        result.SetCancellationTimer(timer);
+        // result.SetCancellationTimer(timer);
 
         return result;
     }
@@ -101,7 +101,7 @@ internal sealed class PublishBatchCommand<T> : CommandBase<PublishBatchCommand<T
 
         result._values1 = values;
         result._serializer = serializer;
-        result.SetCancellationTimer(timer);
+        // result.SetCancellationTimer(timer);
 
         return result;
     }
@@ -115,7 +115,7 @@ internal sealed class PublishBatchCommand<T> : CommandBase<PublishBatchCommand<T
 
         result._values2 = values;
         result._serializer = serializer;
-        result.SetCancellationTimer(timer);
+        // result.SetCancellationTimer(timer);
 
         return result;
     }
@@ -248,7 +248,7 @@ internal sealed class PublishBytesCommand : CommandBase<PublishBytesCommand>
 
         result._subject = subject;
         result._value = value;
-        result.SetCancellationTimer(timer);
+        // result.SetCancellationTimer(timer);
 
         return result;
     }

@@ -1,4 +1,4 @@
-using System.Buffers;
+﻿using System.Buffers;
 using System.Collections.Concurrent;
 using NATS.Client.Core.Internal;
 
@@ -176,7 +176,7 @@ internal sealed class SubscriptionManager : IDisposable
         return returnSubscription;
     }
 
-    public Task PublishToClientHandlersAsync(string subject, string? replyTo, int subscriptionId, in ReadOnlySequence<byte> buffer)
+    public ValueTask PublishToClientHandlersAsync(in NatsKey subject, string? replyTo, int subscriptionId, in ReadOnlySequence<byte> buffer)
     {
         RefCountSubscription? subscription;
         object?[] list;
@@ -188,7 +188,7 @@ internal sealed class SubscriptionManager : IDisposable
             }
             else
             {
-                return Task.CompletedTask;
+                return ValueTask.CompletedTask;
             }
         }
 

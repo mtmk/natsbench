@@ -49,8 +49,8 @@ public sealed class DirectWriteCommand : ICommand
         writer.WriteRaw(_protocol);
     }
 
-    void ICommand.SetCancellationTimer(CancellationTimer timer)
-    {
-        // direct write is not supporting cancellationtimer.
-    }
+    // void ICommand.SetCancellationTimer(CancellationTimer timer)
+    // {
+    //     // direct write is not supporting cancellationtimer.
+    // }
 }

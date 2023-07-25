@@ -66,21 +66,15 @@ await nats2.PingAsync();
 var natsKey = new NATS.Client.Core.NatsKey(subject);
 var stopwatch = Stopwatch.StartNew();
 var sub = await nats1.SubscribeAsync(subject);
-var t = Task.Run(async () =>
-{
-    int i = 0;
-    await foreach (var msg in sub.Msgs.ReadAllAsync())
-    {
-        if (++i == msgs) break;
-    }
-});
 var bytes = new byte[size];
 for (int j = 0; j < msgs; j++)
 {
     nats2.PostPublish(natsKey, bytes);
 }
 Console.WriteLine(stopwatch.Elapsed);
-await t;
+sub.r.Wait();
+
+
 
 
 var elapsed = stopwatch.Elapsed;

@@ -1,4 +1,4 @@
-using System.Buffers;
+﻿using System.Buffers;
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using NATS.Client.Core.Internal;
@@ -6,7 +6,7 @@ using NATS.Client.Core.Internal;
 namespace NATS.Client.Core;
 
 // TODO: Clean up message publisher.
-internal delegate Task PublishMessage(string subject, string? replyTo, NatsOptions options, ReadOnlySequence<byte> buffer, object?[] callbacks);
+internal delegate ValueTask PublishMessage(in NatsKey subject, string? replyTo, NatsOptions options, ReadOnlySequence<byte> buffer, object?[] callbacks);
 
 internal static class MessagePublisher
 {
@@ -14,7 +14,7 @@ internal static class MessagePublisher
     private static readonly Func<Type, PublishMessage> CreatePublisherValue = CreatePublisher;
     private static readonly ConcurrentDictionary<Type, PublishMessage> PublisherCache = new();
 
-    public static Task PublishAsync(string subject, string? replyTo, Type type, NatsOptions options, in ReadOnlySequence<byte> buffer, object?[] callbacks)
+    public static ValueTask PublishAsync(in NatsKey subject, string? replyTo, Type type, NatsOptions options, in ReadOnlySequence<byte> buffer, object?[] callbacks)
     {
         return PublisherCache.GetOrAdd(type, CreatePublisherValue).Invoke(subject, replyTo, options, buffer, callbacks);
     }
@@ -23,7 +23,7 @@ internal static class MessagePublisher
     {
         if (type == typeof(byte[]))
         {
-            return new ByteArrayMessagePublisher().Publish;
+            // return new ByteArrayMessagePublisher().Publish;
         }
         else if (type == typeof(ReadOnlyMemory<byte>))
         {
@@ -183,7 +183,7 @@ internal sealed class ByteArrayMessagePublisher
 
 internal sealed class ReadOnlyMemoryMessagePublisher
 {
-    public async Task PublishAsync(string subject, string? replyTo, NatsOptions? options, ReadOnlySequence<byte> buffer, object?[] callbacks)
+    public ValueTask PublishAsync(in NatsKey subject, string? replyTo, NatsOptions? options, ReadOnlySequence<byte> buffer, object?[] callbacks)
     {
         ReadOnlyMemory<byte> value;
         try
@@ -207,7 +207,7 @@ internal sealed class ReadOnlyMemoryMessagePublisher
             {
             }
 
-            return;
+            //return;
         }
 
         try
@@ -222,11 +222,11 @@ internal sealed class ReadOnlyMemoryMessagePublisher
                         {
                             if (callback is NatsSubBase natsSub)
                             {
-                                await natsSub.ReceiveAsync(subject, replyTo, buffer).ConfigureAwait(false);
+                                return natsSub.ReceiveAsync(subject, replyTo, buffer);
                             }
                             else if (callback is Action<ReadOnlyMemory<byte>> action)
                             {
-                                action.Invoke(value);
+                                //action.Invoke(value);
                             }
                             else
                             {
@@ -246,8 +246,8 @@ internal sealed class ReadOnlyMemoryMessagePublisher
                 {
                     if (callback != null)
                     {
-                        var item = ThreadPoolWorkItem<ReadOnlyMemory<byte>>.Create((Action<ReadOnlyMemory<byte>>)callback, value, options!.LoggerFactory);
-                        ThreadPool.UnsafeQueueUserWorkItem(item, preferLocal: false);
+                        // var item = ThreadPoolWorkItem<ReadOnlyMemory<byte>>.Create((Action<ReadOnlyMemory<byte>>)callback, value, options!.LoggerFactory);
+                        // ThreadPool.UnsafeQueueUserWorkItem(item, preferLocal: false);
                     }
                 }
             }
@@ -262,5 +262,7 @@ internal sealed class ReadOnlyMemoryMessagePublisher
             {
             }
         }
+
+        return ValueTask.CompletedTask;
     }
 }

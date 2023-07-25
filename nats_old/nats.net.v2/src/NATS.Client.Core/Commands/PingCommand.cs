@@ -15,7 +15,7 @@ internal sealed class PingCommand : CommandBase<PingCommand>
             result = new PingCommand();
         }
 
-        result.SetCancellationTimer(timer);
+        // result.SetCancellationTimer(timer);
 
         return result;
     }

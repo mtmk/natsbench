@@ -13,8 +13,8 @@ internal abstract class CommandBase<TSelf> : ICommand, IObjectPoolNode<TSelf>
     private static readonly Action<object?> CancelAction = SetCancel;
 
     private TSelf? _next;
-    private CancellationTokenRegistration _timerRegistration;
-    private CancellationTimer? _timer;
+    // private CancellationTokenRegistration _timerRegistration;
+    // private CancellationTimer? _timer;
 
     public bool IsCanceled { get; private set; }
 
@@ -22,25 +22,28 @@ internal abstract class CommandBase<TSelf> : ICommand, IObjectPoolNode<TSelf>
 
     void ICommand.Return(ObjectPool pool)
     {
-        _timerRegistration.Dispose(); // wait for cancel callback complete
-        _timerRegistration = default;
-
-        // if failed to return timer, maybe invoked timer callback so avoid race condition, does not return command itself to pool.
-        if (!IsCanceled && (_timer == null || _timer.TryReturn()))
-        {
-            _timer = null;
-            Reset();
-            pool.Return(Unsafe.As<TSelf>(this));
-        }
+        Reset();
+        pool.Return(Unsafe.As<TSelf>(this));
+        
+        // _timerRegistration.Dispose(); // wait for cancel callback complete
+        // _timerRegistration = default;
+        //
+        // // if failed to return timer, maybe invoked timer callback so avoid race condition, does not return command itself to pool.
+        // if (!IsCanceled && (_timer == null || _timer.TryReturn()))
+        // {
+        //     _timer = null;
+        //     Reset();
+        //     pool.Return(Unsafe.As<TSelf>(this));
+        // }
     }
 
     public abstract void Write(ProtocolWriter writer);
 
-    public void SetCancellationTimer(CancellationTimer timer)
-    {
-        _timer = timer;
-        _timerRegistration = timer.Token.UnsafeRegister(CancelAction, this);
-    }
+    // public void SetCancellationTimer(CancellationTimer timer)
+    // {
+    //     _timer = timer;
+    //     _timerRegistration = timer.Token.UnsafeRegister(CancelAction, this);
+    // }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected static bool TryRent(ObjectPool pool, [NotNullWhen(true)] out TSelf? self)

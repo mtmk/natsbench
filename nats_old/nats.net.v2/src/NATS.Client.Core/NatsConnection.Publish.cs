@@ -9,14 +9,14 @@ public partial class NatsConnection
     {
         if (ConnectionState == NatsConnectionState.Open)
         {
-            var command = PublishBytesCommand.Create(_pool, GetCommandTimer(CancellationToken.None), key, new ReadOnlySequence<byte>(value));
+            var command = PublishBytesCommand.Create(_pool, default/*GetCommandTimer(CancellationToken.None)*/, key, new ReadOnlySequence<byte>(value));
             EnqueueCommand(command);
         }
         else
         {
             WithConnect(key, value, static (self, k, v) =>
             {
-                var command = PublishBytesCommand.Create(self._pool, self.GetCommandTimer(CancellationToken.None),k, new ReadOnlySequence<byte>(v));
+                var command = PublishBytesCommand.Create(self._pool, default/*self.GetCommandTimer(CancellationToken.None)*/,k, new ReadOnlySequence<byte>(v));
                 self.EnqueueCommand(command);
             });
         }

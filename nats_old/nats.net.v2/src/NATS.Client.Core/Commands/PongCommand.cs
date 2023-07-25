@@ -15,7 +15,7 @@ internal sealed class PongCommand : CommandBase<PongCommand>
             result = new PongCommand();
         }
 
-        result.SetCancellationTimer(timer);
+        // result.SetCancellationTimer(timer);
 
         return result;
     }

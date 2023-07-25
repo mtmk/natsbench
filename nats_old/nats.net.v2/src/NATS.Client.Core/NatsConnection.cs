@@ -190,7 +190,7 @@ public partial class NatsConnection : IAsyncDisposable, INatsCommand
         _ = EnqueueCommandAsync(command);
     }
 
-    internal Task PublishToClientHandlersAsync(string subject, string? replyTo, int subscriptionId, in ReadOnlySequence<byte> buffer)
+    internal ValueTask PublishToClientHandlersAsync(in NatsKey subject, string? replyTo, int subscriptionId, in ReadOnlySequence<byte> buffer)
     {
         return _subscriptionManager.PublishToClientHandlersAsync(subject, replyTo, subscriptionId, buffer);
     }

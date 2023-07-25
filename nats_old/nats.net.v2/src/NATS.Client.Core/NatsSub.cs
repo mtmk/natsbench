@@ -32,12 +32,12 @@ public abstract class NatsSubBase : IAsyncDisposable
         (await InternalSubscription.ConfigureAwait(false)).Dispose();
     }
 
-    internal abstract ValueTask ReceiveAsync(string subject, string? replyTo, ReadOnlySequence<byte> buffer);
+    internal abstract ValueTask ReceiveAsync(in NatsKey subject, string? replyTo, ReadOnlySequence<byte> buffer);
 }
 
 public sealed class NatsSub : NatsSubBase
 {
-    private readonly Channel<NatsMsg> _msgs = Channel.CreateBounded<NatsMsg>(new BoundedChannelOptions(1_000)
+    private readonly Channel<int> _msgs = Channel.CreateBounded<int>(new BoundedChannelOptions(1_000)
     {
         FullMode = BoundedChannelFullMode.Wait,
         SingleWriter = true,
@@ -45,7 +45,7 @@ public sealed class NatsSub : NatsSubBase
         AllowSynchronousContinuations = false,
     });
 
-    public ChannelReader<NatsMsg> Msgs => _msgs.Reader;
+    public ChannelReader<int> Msgs => _msgs.Reader;
 
     public override async ValueTask DisposeAsync()
     {
@@ -55,15 +55,21 @@ public sealed class NatsSub : NatsSubBase
         }
     }
 
-    internal override ValueTask ReceiveAsync(string subject, string? replyTo, ReadOnlySequence<byte> buffer)
+    public int i;
+    public ManualResetEventSlim r = new();
+    internal override ValueTask ReceiveAsync(in NatsKey subject, string? replyTo, ReadOnlySequence<byte> buffer)
     {
-        return _msgs.Writer.WriteAsync(new NatsMsg
-        {
-            Connection = Connection,
-            Subject = subject,
-            ReplyTo = replyTo,
-            Data = buffer.ToArray(),
-        });
+        var ii = Interlocked.Increment(ref i);
+        if (ii== 1_000_000) r.Set();
+        return ValueTask.CompletedTask;
+        //return _msgs.Writer.WriteAsync(1);
+        // return _msgs.Writer.WriteAsync(new NatsMsg
+        // {
+        //     Connection = Connection,
+        //     Subject = subject,
+        //     ReplyTo = replyTo,
+        //     Data = buffer.ToArray(),
+        // });
     }
 }
 
@@ -89,14 +95,14 @@ public sealed class NatsSub<T> : NatsSubBase
         }
     }
 
-    internal override ValueTask ReceiveAsync(string subject, string? replyTo, ReadOnlySequence<byte> buffer)
+    internal override ValueTask ReceiveAsync(in NatsKey subject, string? replyTo, ReadOnlySequence<byte> buffer)
     {
         var serializer = Serializer ?? Connection!.Options.Serializer;
         var data = serializer.Deserialize<T>(buffer);
         return _msgs.Writer.WriteAsync(new NatsMsg<T>(data!)
         {
             Connection = Connection,
-            Subject = subject,
+        //    Subject = subject,
             ReplyTo = replyTo,
         });
     }

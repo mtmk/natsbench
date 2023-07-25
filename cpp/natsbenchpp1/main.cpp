@@ -6,31 +6,34 @@
 #include <mutex>
 #include <chrono>
 
-using namespace std;
+#define ASIO_WINDOWS_RUNTIME
 
-mutex mutex_;
-condition_variable condVar;
+#include <asio.hpp>
+//#include <boost/beast.hpp>
+
+std::mutex mutex_;
+std::condition_variable condVar;
 int msgs = 1000000;
 
-void reader_task(shared_ptr<SocketClient> s)
+void reader_task(std::shared_ptr<SocketClient> s)
 {
     int i = 0;
     while (1) {
-        string l = s->ReceiveLine();
+        std::string l = s->ReceiveLine();
         if (l.empty()) break;
 
         if (l.rfind("PING", 0) == 0)
         {
-            cout << l;
-            cout.flush();
+            std::cout << l;
+            std::cout.flush();
             s->SendLine("PONG");
             continue;
         }
 
         if (l.rfind("INFO", 0) == 0)
         {
-            cout << l;
-            cout.flush();
+            std::cout << l;
+            std::cout.flush();
             condVar.notify_one();
             continue;
         }
@@ -54,14 +57,33 @@ void reader_task(shared_ptr<SocketClient> s)
 
 int main() {
 
-    try {
-        auto s = make_shared<SocketClient>("127.0.0.1", 4222);
+    asio::io_service io_service;
+    asio::ip::tcp::resolver resolver(io_service);
+    std::string host_("localhost");
+    resolver.async_resolve(
+        asio::ip::tcp::resolver::query(host_, "4222"),
+        [](asio::ip::tcp::resolver::iterator it)
+        {
+                //if (ec) {
+                //    std::cout << "Error resolving " << host_ << ": "
+                //        << ec.message();
+                //    return;
+                //}
 
-        thread reader_thread(reader_task, s);
+                // For simplicity, we'll assume the first endpoint will always
+                // be available.
+                std::cout << ": resolved to " << it->endpoint() << std::endl;
+                //do_connect(it->endpoint());
+        });
+
+    try {
+        auto s = std::make_shared<SocketClient>("127.0.0.1", 4222);
+
+        std::thread reader_thread(reader_task, s);
 
         s->SendLine("CONNECT {\"verbose\":false}");
 
-        unique_lock<std::mutex> lck(mutex_);
+        std::unique_lock<std::mutex> lck(mutex_);
         condVar.wait(lck);
 
         s->SendLine("SUB foo 0");
@@ -71,11 +93,11 @@ int main() {
         for (int i = 0; i < msgs; i++)
         {
             s->SendBytes("PUB foo 128\r\n12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678\r\n");
-            cout.flush();
+            std::cout.flush();
         }
-        cout << "pub done\n";
+        std::cout << "pub done\n";
         reader_thread.join();
-        cout << "sub done\n";
+        std::cout << "sub done\n";
 
         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
         std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::seconds>(end - begin).count() << "[s]" << std::endl;
@@ -84,13 +106,13 @@ int main() {
         std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count() << "[ns]" << std::endl;
     }
     catch (const char* s) {
-        cerr << s << endl;
+        std::cerr << s << std::endl;
     }
     catch (std::string s) {
-        cerr << s << endl;
+        std::cerr << s << std::endl;
     }
     catch (...) {
-        cerr << "unhandled exception\n";
+        std::cerr << "unhandled exception\n";
     }
 
     return 0;

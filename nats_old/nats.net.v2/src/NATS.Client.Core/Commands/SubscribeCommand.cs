@@ -22,7 +22,7 @@ internal sealed class SubscribeCommand : CommandBase<SubscribeCommand>
         result._subject = subject;
         result._subscriptionId = subscriptionId;
         result._queueGroup = queueGroup;
-        result.SetCancellationTimer(timer);
+        // result.SetCancellationTimer(timer);
 
         return result;
     }

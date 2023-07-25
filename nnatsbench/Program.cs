@@ -106,6 +106,7 @@ for (int j = 0; j < msgs; j++)
 {
     nats2.PostPublish(natsKey, bytes);
 }
+Console.WriteLine(stopwatch.Elapsed);
 r.Wait();
 
 
