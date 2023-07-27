@@ -50,6 +50,12 @@ Socket::Socket() : s_(0) {
     Start();
     // UDP: use SOCK_DGRAM instead of SOCK_STREAM
     s_ = socket(AF_INET, SOCK_STREAM, 0);
+    
+    int send_buffer = 64 * 1024;    // 64 KB
+    setsockopt(s_, SOL_SOCKET, SO_SNDBUF, (char*) & send_buffer, sizeof(int));
+    
+    DWORD value = 1;
+    setsockopt(s_, IPPROTO_TCP, TCP_NODELAY, (char*)&value, sizeof(value));
 
     if (s_ == INVALID_SOCKET) {
         throw "INVALID_SOCKET";
@@ -156,6 +162,11 @@ void Socket::SendLine(std::string s) {
 void Socket::SendBytes(const std::string& s) {
     send(s_, s.c_str(), s.length(), 0);
 }
+
+void Socket::SendChars(const char* c, int size) {
+    send(s_, c, size, 0);
+}
+
 
 SocketServer::SocketServer(int port, int connections, TypeSocket type) {
     sockaddr_in sa;
