@@ -3,12 +3,15 @@
 using System.Text;
 using ObjectLayoutInspector;
 
-ReadOnlySpan<char> span = "123".AsSpan();
-char c = span[0];
-var rune = new Rune(c);
-var runeValue = rune.Value;
-byte b = (byte)c;
-Encoding.ASCII.GetBytes(span.ToArray());
+TypeLayout.PrintLayout<Struct8>();
+// TypeLayout.PrintLayout<NatsJSControlMsg<R>>();
+
+// ReadOnlySpan<char> span = "123".AsSpan();
+// char c = span[0];
+// var rune = new Rune(c);
+// var runeValue = rune.Value;
+// byte b = (byte)c;
+// Encoding.ASCII.GetBytes(span.ToArray());
 
 //TypeLayout.PrintLayout<Message>();
 // TypeLayout.PrintLayout<StructWithFixedBuffer>(recursively: true);
@@ -106,3 +109,43 @@ public readonly struct NatsKey : IEquatable<NatsKey>
         return Key;
     }
 }
+
+internal enum NatsJSControlMsgType
+{
+    None,
+    Heartbeat,
+    Timeout,
+}
+
+internal readonly struct NatsJSControlMsg<T>
+{
+    public NatsJSMsg<T?> JSMsg { get; init; }
+
+    public bool IsControlMsg => ControlMsgType != NatsJSControlMsgType.None;
+
+    public NatsJSControlMsgType ControlMsgType { get; init; }
+}
+
+
+public readonly struct NatsJSMsg<T>
+{
+    public NatsMsg<T> Msg { get; init; }
+}
+
+public readonly record struct NatsMsg<T>(
+    string Subject,
+    string? ReplyTo,
+    int Size,
+    NatsHeadersX? Headers,
+    T? Data,
+    INatsConnectionX? Connection);
+
+public interface INatsConnectionX
+{
+}
+
+public class NatsHeadersX
+{
+}
+
+record struct Struct8(long F1, long F2, long F3, long F4, long F5, long F6, long F7, long F8);

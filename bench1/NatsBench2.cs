@@ -32,7 +32,7 @@ public class NatsBench2
 
         _message = "my_message";
     }
-    
+
     [Benchmark]
     public async Task<int> PubSub()
     {
@@ -40,4 +40,5 @@ public class NatsBench2
         _signal.Wait();
         _signal.Reset();
         return Volatile.Read(ref _count);
-    }}
+    }
+}
