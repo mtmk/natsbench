@@ -139,22 +139,22 @@ class Program
                 var stream = match.Groups[1].Value;
                 var subjects = match.Groups[2].Value;
                 Println($"Creating stream {stream}...");
-                var js = new JSContext(nats, new JSOptions());
-                var r = await js.CreateStreamAsync(new StreamConfiguration
-                {
-                    Name = stream,
-                    Subjects = subjects.Split(','),
-                });
-                Println($"{r.Error}{r.Response}");
+                // var js = new JSContext(nats, new JSOptions());
+                // var r = await js.CreateStreamAsync(new StreamConfiguration
+                // {
+                //     Name = stream,
+                //     Subjects = subjects.Split(','),
+                // });
+                // Println($"{r.Error}{r.Response}");
             }
             else if (cmd.StartsWith("stream delete"))
             {
                 var match = Regex.Match(cmd, @"^stream delete (\w+)\s*$");
                 if (!match.Success) continue;
                 var stream = match.Groups[1].Value;
-                var js = new JSContext(nats, new JSOptions());
-                var r = await js.DeleteStreamAsync(stream);
-                Println($"{r.Error}{r.Response}");
+                // var js = new JSContext(nats, new JSOptions());
+                // var r = await js.DeleteStreamAsync(stream);
+                // Println($"{r.Error}{r.Response}");
             }
             else if (cmd.StartsWith("consumer create"))
             {
@@ -162,26 +162,26 @@ class Program
                 if (!match.Success) continue;
                 var stream = match.Groups[1].Value;
                 var consumer = match.Groups[2].Value;
-                var js = new JSContext(nats, new JSOptions());
-                var r = await js.CreateConsumerAsync(new ConsumerCreateRequest
-                {
-                    StreamName = stream,
-                    Config = new ConsumerConfiguration
-                    {
-                        Name = consumer,
-                        DurableName = consumer,
-
-                        // Turn on ACK so we can test them below
-                        AckPolicy = ConsumerConfigurationAckPolicy.@explicit,
-
-                        // Effectively set message expiry for the consumer
-                        // so that unacknowledged messages can be put back into
-                        // the consumer to be delivered again (in a sense).
-                        // This is to make below consumer tests work.
-                        AckWait = 2_000_000_000, // 2 seconds
-                    },
-                });
-                Println($"{r.Error}{r.Response}");
+                // var js = new JSContext(nats, new JSOptions());
+                // var r = await js.CreateConsumerAsync(new ConsumerCreateRequest
+                // {
+                //     StreamName = stream,
+                //     Config = new ConsumerConfiguration
+                //     {
+                //         Name = consumer,
+                //         DurableName = consumer,
+                //
+                //         // Turn on ACK so we can test them below
+                //         AckPolicy = ConsumerConfigurationAckPolicy.@explicit,
+                //
+                //         // Effectively set message expiry for the consumer
+                //         // so that unacknowledged messages can be put back into
+                //         // the consumer to be delivered again (in a sense).
+                //         // This is to make below consumer tests work.
+                //         AckWait = 2_000_000_000, // 2 seconds
+                //     },
+                // });
+                // Println($"{r.Error}{r.Response}");
             }
             else if (cmd.StartsWith("jspub"))
             {
@@ -189,43 +189,43 @@ class Program
                 if (!match.Success) continue;
                 var subject = match.Groups[1].Value;
                 var payload = match.Groups[2].Value;
-                var js = new JSContext(nats, new JSOptions());
-                var r = await js.PublishAsync(subject, new Payload { Message = payload });
-                Println($"[PUB] {r}");
+                // var js = new JSContext(nats, new JSOptions());
+                // var r = await js.PublishAsync(subject, new Payload { Message = payload });
+                // Println($"[PUB] {r}");
             }
             else if (cmd.StartsWith("consume"))
             {
-                var match = Regex.Match(cmd, @"^consume (\S+)\s+(\S+)(?:\s+(\S+))?\s*$");
-                if (!match.Success) continue;
-                var stream = match.Groups[1].Value;
-                var consumer = match.Groups[2].Value;
-                var mod = match.Groups[3].Value;
-                Task.Run(async () =>
-                {
-                    var js = new JSContext(nats, new JSOptions());
-                    await foreach (var msg in js.ConsumeAsync(
-                                       stream: stream,
-                                       consumer: consumer,
-                                       request: new ConsumerGetnextRequest
-                                       {
-                                           Batch = 10,
-                                           Expires = 0,
-                                       },
-                                       requestOpts: new NatsSubOpts { CanBeCancelled = true },
-                                       cancellationToken: CancellationToken.None))
-                    {
-                        //Println($"{msg}");
-                        Println($"[CON][{consumer}] {msg.Subject}: {Encoding.UTF8.GetString(msg.Data.Span)}");
-
-                        if (mod != "noack")
-                        {
-                            await msg.ReplyAsync(new ReadOnlySequence<byte>("+ACK"u8.ToArray()),
-                                cancellationToken: CancellationToken.None);
-                            Println($"[CON][{consumer}] +ACK {msg.ReplyTo}");
-                        }
-                        //break;
-                    }
-                });
+                // var match = Regex.Match(cmd, @"^consume (\S+)\s+(\S+)(?:\s+(\S+))?\s*$");
+                // if (!match.Success) continue;
+                // var stream = match.Groups[1].Value;
+                // var consumer = match.Groups[2].Value;
+                // var mod = match.Groups[3].Value;
+                // Task.Run(async () =>
+                // {
+                //     var js = new JSContext(nats, new JSOptions());
+                //     await foreach (var msg in js.ConsumeAsync(
+                //                        stream: stream,
+                //                        consumer: consumer,
+                //                        request: new ConsumerGetnextRequest
+                //                        {
+                //                            Batch = 10,
+                //                            Expires = 0,
+                //                        },
+                //                        requestOpts: new NatsSubOpts { CanBeCancelled = true },
+                //                        cancellationToken: CancellationToken.None))
+                //     {
+                //         //Println($"{msg}");
+                //         Println($"[CON][{consumer}] {msg.Subject}: {Encoding.UTF8.GetString(msg.Data.Span)}");
+                //
+                //         if (mod != "noack")
+                //         {
+                //             await msg.ReplyAsync(new ReadOnlySequence<byte>("+ACK"u8.ToArray()),
+                //                 cancellationToken: CancellationToken.None);
+                //             Println($"[CON][{consumer}] +ACK {msg.ReplyTo}");
+                //         }
+                //         //break;
+                //     }
+                // });
             }
             
             else

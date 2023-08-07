@@ -11,11 +11,10 @@ internal enum NatsSubEndReason
     Timeout,
     IdleTimeout,
     StartUpTimeout,
-    Cancelled,
     Exception,
 }
 
-public abstract class NatsSubBase : INatsSub
+public abstract class NatsSubBase
 {
     private readonly ISubscriptionManager _manager;
     private readonly Timer? _timeoutTimer;
@@ -24,7 +23,6 @@ public abstract class NatsSubBase : INatsSub
     private readonly TimeSpan _startUpTimeout;
     private readonly TimeSpan _timeout;
     private readonly bool _countPendingMsgs;
-    private readonly CancellationTokenSource? _cts;
     private volatile Timer? _startUpTimeoutTimer;
     private bool _disposed;
     private bool _unsubscribed;
@@ -37,8 +35,7 @@ public abstract class NatsSubBase : INatsSub
         NatsConnection connection,
         ISubscriptionManager manager,
         string subject,
-        NatsSubOpts? opts,
-        CancellationToken cancellationToken = default)
+        NatsSubOpts? opts)
     {
         _manager = manager;
         _pendingMsgs = opts is { MaxMsgs: > 0 } ? opts.Value.MaxMsgs ?? -1 : -1;
@@ -50,17 +47,6 @@ public abstract class NatsSubBase : INatsSub
         Connection = connection;
         Subject = subject;
         QueueGroup = opts?.QueueGroup;
-
-        if ((opts?.CanBeCancelled ?? false) && cancellationToken != default)
-        {
-            _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            _cts.Token.UnsafeRegister(
-                static (self, _) =>
-                {
-                    ((NatsSubBase)self!).EndSubscription(NatsSubEndReason.Cancelled);
-                },
-                this);
-        }
 
         // Only allocate timers if necessary to reduce GC pressure
         if (_idleTimeout != default)
@@ -100,15 +86,17 @@ public abstract class NatsSubBase : INatsSub
     /// </summary>
     public string? QueueGroup { get; }
 
+    public Exception? Exception => Volatile.Read(ref _exception);
+
     // Hide from public API using explicit interface implementations
     // since INatsSub is marked as internal.
-    int? INatsSub.PendingMsgs => _pendingMsgs == -1 ? null : Volatile.Read(ref _pendingMsgs);
+    public int? PendingMsgs => _pendingMsgs == -1 ? null : Volatile.Read(ref _pendingMsgs);
 
     internal NatsSubEndReason EndReason => (NatsSubEndReason)Volatile.Read(ref _endReasonRaw);
 
     protected NatsConnection Connection { get; }
 
-    void INatsSub.Ready()
+    public void Ready()
     {
         // Let idle timer start with the first message, in case
         // we're allowed to wait longer for the first message.
@@ -158,12 +146,10 @@ public abstract class NatsSubBase : INatsSub
         _idleTimeoutTimer?.Dispose();
         _startUpTimeoutTimer?.Dispose();
 
-        _cts?.Dispose();
-
         return unsubscribeAsync;
     }
 
-    ValueTask INatsSub.ReceiveAsync(
+    public ValueTask ReceiveAsync(
         string subject,
         string? replyTo,
         ReadOnlySequence<byte>? headersBuffer,
@@ -171,8 +157,6 @@ public abstract class NatsSubBase : INatsSub
         ReceiveInternalAsync(subject, replyTo, headersBuffer, payloadBuffer);
 
     protected abstract ValueTask ReceiveInternalAsync(string subject, string? replyTo, ReadOnlySequence<byte>? headersBuffer, ReadOnlySequence<byte> payloadBuffer);
-
-    public Exception? Exception => Volatile.Read(ref _exception);
 
     protected void SetException(Exception exception)
     {
@@ -222,22 +206,67 @@ public abstract class NatsSubBase : INatsSub
     }
 }
 
-public sealed class NatsSub : NatsSubBase
+public interface INatsSub : IAsyncDisposable
 {
-    private readonly Channel<NatsMsg> _msgs = Channel.CreateBounded<NatsMsg>(new BoundedChannelOptions(1_000)
-    {
-        FullMode = BoundedChannelFullMode.Wait,
-        SingleWriter = true,
-        SingleReader = false,
-        AllowSynchronousContinuations = false,
-    });
+    ChannelReader<NatsMsg> Msgs { get; }
 
-    internal NatsSub(NatsConnection connection, ISubscriptionManager manager, string subject, NatsSubOpts? opts, CancellationToken cancellationToken = default)
-        : base(connection, manager, subject, opts, cancellationToken)
-    {
-    }
+    /// <summary>
+    /// The subject name to subscribe to.
+    /// </summary>
+    string Subject { get; }
+
+    /// <summary>
+    /// If specified, the subscriber will join this queue group. Subscribers with the same queue group name,
+    /// become a queue group, and only one randomly chosen subscriber of the queue group will
+    /// consume a message each time a message is received by the queue group.
+    /// </summary>
+    string? QueueGroup { get; }
+
+    public ValueTask UnsubscribeAsync();
+}
+
+public sealed class NatsSub : NatsSubBase, INatsSub
+{
+    private static readonly BoundedChannelOptions DefaultChannelOptions =
+        new BoundedChannelOptions(1_000)
+        {
+            FullMode = BoundedChannelFullMode.Wait,
+            SingleWriter = true,
+            SingleReader = false,
+            AllowSynchronousContinuations = false,
+        };
+
+    private readonly Channel<NatsMsg> _msgs;
+
+    internal NatsSub(NatsConnection connection, ISubscriptionManager manager, string subject, NatsSubOpts? opts)
+        : base(connection, manager, subject, opts) =>
+        _msgs = Channel.CreateBounded<NatsMsg>(
+            GetChannelOptions(opts?.ChannelOptions));
 
     public ChannelReader<NatsMsg> Msgs => _msgs.Reader;
+
+    internal static BoundedChannelOptions GetChannelOptions(
+        NatsSubChannelOpts? subChannelOpts)
+    {
+        if (subChannelOpts != null)
+        {
+            var overrideOpts = subChannelOpts.Value;
+            return new BoundedChannelOptions(overrideOpts.Capacity ??
+                                             DefaultChannelOptions.Capacity)
+            {
+                AllowSynchronousContinuations =
+                    DefaultChannelOptions.AllowSynchronousContinuations,
+                FullMode =
+                    overrideOpts.FullMode ?? DefaultChannelOptions.FullMode,
+                SingleWriter = DefaultChannelOptions.SingleWriter,
+                SingleReader = DefaultChannelOptions.SingleReader,
+            };
+        }
+        else
+        {
+            return DefaultChannelOptions;
+        }
+    }
 
     protected override async ValueTask ReceiveInternalAsync(string subject, string? replyTo, ReadOnlySequence<byte>? headersBuffer, ReadOnlySequence<byte> payloadBuffer)
     {
@@ -259,19 +288,42 @@ public sealed class NatsSub : NatsSubBase
     protected override void TryComplete() => _msgs.Writer.TryComplete();
 }
 
-public sealed class NatsSub<T> : NatsSubBase
+public interface INatsSub<T> : IAsyncDisposable
 {
-    private readonly Channel<NatsMsg<T?>> _msgs = Channel.CreateBounded<NatsMsg<T?>>(
-        new BoundedChannelOptions(capacity: 1_000)
-        {
-            FullMode = BoundedChannelFullMode.Wait,
-            SingleWriter = true,
-            SingleReader = false,
-            AllowSynchronousContinuations = false,
-        });
+    ChannelReader<NatsMsg<T?>> Msgs { get; }
 
-    internal NatsSub(NatsConnection connection, ISubscriptionManager manager, string subject, NatsSubOpts? opts, INatsSerializer serializer, CancellationToken cancellationToken = default)
-        : base(connection, manager, subject, opts, cancellationToken) => Serializer = serializer;
+    /// <summary>
+    /// The subject name to subscribe to.
+    /// </summary>
+    string Subject { get; }
+
+    /// <summary>
+    /// If specified, the subscriber will join this queue group. Subscribers with the same queue group name,
+    /// become a queue group, and only one randomly chosen subscriber of the queue group will
+    /// consume a message each time a message is received by the queue group.
+    /// </summary>
+    string? QueueGroup { get; }
+
+    public ValueTask UnsubscribeAsync();
+}
+
+public sealed class NatsSub<T> : NatsSubBase, INatsSub<T>
+{
+    private readonly Channel<NatsMsg<T?>> _msgs;
+
+    internal NatsSub(
+        NatsConnection connection,
+        ISubscriptionManager manager,
+        string subject,
+        NatsSubOpts? opts,
+        INatsSerializer serializer)
+        : base(connection, manager, subject, opts)
+    {
+        _msgs = Channel.CreateBounded<NatsMsg<T?>>(
+            NatsSub.GetChannelOptions(opts?.ChannelOptions));
+
+        Serializer = serializer;
+    }
 
     public ChannelReader<NatsMsg<T?>> Msgs => _msgs.Reader;
 

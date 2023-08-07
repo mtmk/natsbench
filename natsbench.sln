@@ -91,6 +91,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "nnatsbench_old", "nnatsbenc
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "natsjsapi1", "natsjsapi1\natsjsapi1.csproj", "{983FDBBE-C578-422C-8584-9B1286BEBAD6}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "nperf1", "nperf1\nperf1.csproj", "{69BAB6BB-0517-4934-9E56-C136B09053EC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "nperf0", "nperf0\nperf0.csproj", "{2115F246-F8D8-4C87-851D-643C8184B177}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -204,6 +208,14 @@ Global
 		{983FDBBE-C578-422C-8584-9B1286BEBAD6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{983FDBBE-C578-422C-8584-9B1286BEBAD6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{983FDBBE-C578-422C-8584-9B1286BEBAD6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{69BAB6BB-0517-4934-9E56-C136B09053EC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{69BAB6BB-0517-4934-9E56-C136B09053EC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{69BAB6BB-0517-4934-9E56-C136B09053EC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{69BAB6BB-0517-4934-9E56-C136B09053EC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2115F246-F8D8-4C87-851D-643C8184B177}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2115F246-F8D8-4C87-851D-643C8184B177}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2115F246-F8D8-4C87-851D-643C8184B177}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2115F246-F8D8-4C87-851D-643C8184B177}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{60BEF34F-572D-477F-943F-16B869FDE06B} = {B3CCFF33-B33D-45E4-AEE1-778D5A2347D1}

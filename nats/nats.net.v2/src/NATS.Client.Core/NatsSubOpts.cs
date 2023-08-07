@@ -1,3 +1,5 @@
+using System.Threading.Channels;
+
 namespace NATS.Client.Core;
 
 public readonly record struct NatsSubOpts
@@ -60,9 +62,7 @@ public readonly record struct NatsSubOpts
     public TimeSpan? IdleTimeout { get; init; }
 
     /// <summary>
-    /// Subscription's <see cref="CancellationToken"/> will be used to unsubscribe if
-    /// token is cancelled. Otherwise <see cref="CancellationToken"/> only applies to
-    /// server subscription request.
+    /// Allows Configuration of <see cref="Channel"/> options for a subscription.
     /// </summary>
-    public bool? CanBeCancelled { get; init; }
+    public NatsSubChannelOpts? ChannelOptions { get; init; }
 }

@@ -9,7 +9,7 @@ public class ProtocolTest
     [Fact]
     public async Task Subscription_with_same_subject()
     {
-        await using var server = new NatsServer(_output, TransportType.Tcp);
+        await using var server = NatsServer.Start(_output, TransportType.Tcp);
         var nats1 = server.CreateClientConnection();
         var (nats2, proxy) = server.CreateProxiedClientConnection();
 
@@ -104,7 +104,8 @@ public class ProtocolTest
         {
             _output.WriteLine($"[TESTS] {DateTime.Now:HH:mm:ss.fff} {text}");
         }
-        await using var server = new NatsServer(_output, new NatsServerOptionsBuilder().UseTransport(TransportType.Tcp).Trace().Build());
+
+        await using var server = NatsServer.Start(_output, new NatsServerOptionsBuilder().UseTransport(TransportType.Tcp).Trace().Build());
         var (nats, proxy) = server.CreateProxiedClientConnection();
 
         var sync = 0;
@@ -171,7 +172,7 @@ public class ProtocolTest
         }
 
         // Use a single server to test multiple scenarios to make test runs more efficient
-        await using var server = new NatsServer(_output, new NatsServerOptionsBuilder().UseTransport(TransportType.Tcp).Trace().Build());
+        await using var server = NatsServer.Start(_output, new NatsServerOptionsBuilder().UseTransport(TransportType.Tcp).Trace().Build());
         var (nats, proxy) = server.CreateProxiedClientConnection();
         var sid = 0;
 
@@ -201,7 +202,7 @@ public class ProtocolTest
             }
 
             Assert.Equal(maxMsgs, count);
-            Assert.Equal(NatsSubEndReason.MaxMsgs, sub.EndReason);
+            Assert.Equal(NatsSubEndReason.MaxMsgs, ((NatsSubBase)sub).EndReason);
         }
 
         Log("### Manual unsubscribe");
@@ -234,7 +235,7 @@ public class ProtocolTest
             }
 
             Assert.Equal(0, count);
-            Assert.Equal(NatsSubEndReason.None, sub.EndReason);
+            Assert.Equal(NatsSubEndReason.None, ((NatsSubBase)sub).EndReason);
         }
 
         Log("### Reconnect");
@@ -257,7 +258,7 @@ public class ProtocolTest
             await Retry.Until("received", () => Volatile.Read(ref count) == pubMsgs);
 
             var pending = maxMsgs - pubMsgs;
-            Assert.Equal(pending, ((INatsSub)sub).PendingMsgs);
+            Assert.Equal(pending, ((NatsSubBase)sub).PendingMsgs);
 
             proxy.Reset();
 
@@ -280,7 +281,7 @@ public class ProtocolTest
 
             await Retry.Until(
                 "unsubscribed with max-msgs",
-                () => sub.EndReason == NatsSubEndReason.MaxMsgs);
+                () => ((NatsSubBase)sub).EndReason == NatsSubEndReason.MaxMsgs);
 
             Assert.Equal(maxMsgs, Volatile.Read(ref count));
 
