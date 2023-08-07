@@ -443,14 +443,14 @@ internal sealed class NatsReadProtocolProcessor : IAsyncDisposable
 
     // https://docs.nats.io/reference/reference-protocols/nats-protocol#msg
     // MSG <subject> <sid> [reply-to] <#bytes>\r\n[payload]
-    private (string subject, int sid, int payloadLength, string? replyTo) ParseMessageHeader(ReadOnlySpan<byte> msgHeader)
+    private (NatsSubject subject, int sid, int payloadLength, NatsSubject? replyTo) ParseMessageHeader(ReadOnlySpan<byte> msgHeader)
     {
         msgHeader = msgHeader.Slice(4);
         Split(msgHeader, out var subjectBytes, out msgHeader);
         Split(msgHeader, out var sidBytes, out msgHeader);
         Split(msgHeader, out var replyToOrSizeBytes, out msgHeader);
 
-        var subject = Encoding.ASCII.GetString(subjectBytes);
+        var subject = new NatsSubject(subjectBytes.ToArray());
 
         if (msgHeader.Length == 0)
         {
@@ -465,12 +465,12 @@ internal sealed class NatsReadProtocolProcessor : IAsyncDisposable
 
             var sid = GetInt32(sidBytes);
             var payloadLength = GetInt32(bytesSlice);
-            var replyTo = Encoding.ASCII.GetString(replyToBytes);
+            var replyTo = new NatsSubject(replyToBytes.ToArray());
             return (subject, sid, payloadLength, replyTo);
         }
     }
 
-    private (string subject, int sid, int payloadLength, string? replyTo) ParseMessageHeader(in ReadOnlySequence<byte> msgHeader)
+    private (NatsSubject subject, int sid, int payloadLength, NatsSubject? replyTo) ParseMessageHeader(in ReadOnlySequence<byte> msgHeader)
     {
         if (msgHeader.IsSingleSegment)
         {
@@ -495,7 +495,7 @@ internal sealed class NatsReadProtocolProcessor : IAsyncDisposable
 
     // https://docs.nats.io/reference/reference-protocols/nats-protocol#hmsg
     // HMSG <subject> <sid> [reply-to] <#header bytes> <#total bytes>\r\n[headers]\r\n\r\n[payload]\r\n
-    private (string subject, int sid, string? replyTo, int headersLength, int totalLength) ParseHMessageHeader(ReadOnlySpan<byte> msgHeader)
+    private (NatsSubject subject, int sid, NatsSubject? replyTo, int headersLength, int totalLength) ParseHMessageHeader(ReadOnlySpan<byte> msgHeader)
     {
         // 'HMSG' literal
         Split(msgHeader, out _, out msgHeader);
@@ -505,7 +505,7 @@ internal sealed class NatsReadProtocolProcessor : IAsyncDisposable
         Split(msgHeader, out var replyToOrHeaderLenBytes, out msgHeader);
         Split(msgHeader, out var headerLenOrTotalLenBytes, out msgHeader);
 
-        var subject = Encoding.ASCII.GetString(subjectBytes);
+        var subject = new NatsSubject(subjectBytes.ToArray());
         var sid = GetInt32(sidBytes);
 
         // We don't have the optional reply-to field
@@ -520,7 +520,7 @@ internal sealed class NatsReadProtocolProcessor : IAsyncDisposable
         else
         {
             var replyToBytes = replyToOrHeaderLenBytes;
-            var replyTo = Encoding.ASCII.GetString(replyToBytes);
+            var replyTo = new NatsSubject(replyToBytes.ToArray());
 
             var headerLen = GetInt32(headerLenOrTotalLenBytes);
 
@@ -531,7 +531,7 @@ internal sealed class NatsReadProtocolProcessor : IAsyncDisposable
         }
     }
 
-    private (string subject, int sid, string? replyTo, int headersLength, int totalLength) ParseHMessageHeader(in ReadOnlySequence<byte> msgHeader)
+    private (NatsSubject subject, int sid, NatsSubject? replyTo, int headersLength, int totalLength) ParseHMessageHeader(in ReadOnlySequence<byte> msgHeader)
     {
         if (msgHeader.IsSingleSegment)
         {

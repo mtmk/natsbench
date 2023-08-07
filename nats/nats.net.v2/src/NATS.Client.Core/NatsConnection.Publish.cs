@@ -1,11 +1,12 @@
 using System.Buffers;
+using NATS.Client.Core.Commands;
 
 namespace NATS.Client.Core;
 
 public partial class NatsConnection
 {
     /// <inheritdoc />
-    public ValueTask PublishAsync(string subject, ReadOnlySequence<byte> payload = default, in NatsPubOpts? opts = default, CancellationToken cancellationToken = default)
+    public ValueTask PublishAsync(NatsSubject subject, ReadOnlySequence<byte> payload = default, in NatsPubOpts? opts = default, CancellationToken cancellationToken = default)
     {
         if (opts?.WaitUntilSent ?? false)
         {
@@ -24,7 +25,7 @@ public partial class NatsConnection
     }
 
     /// <inheritdoc />
-    public ValueTask PublishAsync<T>(string subject, T? data, in NatsPubOpts? opts = default, CancellationToken cancellationToken = default)
+    public ValueTask PublishAsync<T>(NatsSubject subject, T? data, in NatsPubOpts? opts = default, CancellationToken cancellationToken = default)
     {
         var serializer = opts?.Serializer ?? Options.Serializer;
         if (opts?.WaitUntilSent ?? false)

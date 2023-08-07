@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
+using NATS.Client.Core.Commands;
 
 namespace NATS.Client.Core.Internal;
 
@@ -13,7 +14,7 @@ internal class InboxSub : INatsSub
 
     public InboxSub(
         InboxSubBuilder inbox,
-        string subject,
+        NatsSubject subject,
         NatsSubOpts? opts,
         NatsConnection connection,
         ISubscriptionManager manager)
@@ -26,7 +27,7 @@ internal class InboxSub : INatsSub
         PendingMsgs = opts?.MaxMsgs;
     }
 
-    public string Subject { get; }
+    public NatsSubject Subject { get; }
 
     public string? QueueGroup { get; }
 
@@ -36,7 +37,7 @@ internal class InboxSub : INatsSub
     {
     }
 
-    public ValueTask ReceiveAsync(string subject, string? replyTo, ReadOnlySequence<byte>? headersBuffer, ReadOnlySequence<byte> payloadBuffer)
+    public ValueTask ReceiveAsync(NatsSubject subject, NatsSubject? replyTo, ReadOnlySequence<byte>? headersBuffer, ReadOnlySequence<byte> payloadBuffer)
     {
         return _inbox.ReceivedAsync(subject, replyTo, headersBuffer, payloadBuffer, _connection);
     }
@@ -47,11 +48,11 @@ internal class InboxSub : INatsSub
 internal class InboxSubBuilder : INatsSubBuilder<InboxSub>, ISubscriptionManager
 {
     private readonly ILogger<InboxSubBuilder> _logger;
-    private readonly ConcurrentDictionary<string, ConditionalWeakTable<INatsSub, object>> _bySubject = new();
+    private readonly ConcurrentDictionary<NatsSubject, ConditionalWeakTable<INatsSub, object>> _bySubject = new();
 
     public InboxSubBuilder(ILogger<InboxSubBuilder> logger) => _logger = logger;
 
-    public InboxSub Build(string subject, NatsSubOpts? opts, NatsConnection connection, ISubscriptionManager manager)
+    public InboxSub Build(NatsSubject subject, NatsSubOpts? opts, NatsConnection connection, ISubscriptionManager manager)
     {
         return new InboxSub(this, subject, opts, connection, manager);
     }
@@ -83,7 +84,7 @@ internal class InboxSubBuilder : INatsSubBuilder<InboxSub>, ISubscriptionManager
         sub.Ready();
     }
 
-    public async ValueTask ReceivedAsync(string subject, string? replyTo, ReadOnlySequence<byte>? headersBuffer, ReadOnlySequence<byte> payloadBuffer, NatsConnection connection)
+    public async ValueTask ReceivedAsync(NatsSubject subject, NatsSubject? replyTo, ReadOnlySequence<byte>? headersBuffer, ReadOnlySequence<byte> payloadBuffer, NatsConnection connection)
     {
         if (!_bySubject.TryGetValue(subject, out var subTable))
         {

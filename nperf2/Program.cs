@@ -1,7 +1,9 @@
 ﻿using System.Buffers;
 using System.Diagnostics;
+using System.Text;
 using System.Text.RegularExpressions;
 using NATS.Client.Core;
+using NATS.Client.Core.Commands;
 
 var t = new TestParams
 {
@@ -24,7 +26,7 @@ await using var nats2 = new NatsConnection();
 await nats1.PingAsync();
 await nats2.PingAsync();
 
-await using var sub = await nats1.SubscribeAsync(t.Subject);
+await using var sub = await nats1.SubscribeAsync(new NatsSubject(t.Subject));
 
 var stopwatch = Stopwatch.StartNew();
 
@@ -38,10 +40,11 @@ var subReader = Task.Run(async () =>
     }
 });
 
+var subject = new NatsSubject(t.Subject);
 var payload = new ReadOnlySequence<byte>(new byte[t.Size]);
 for (var i = 0; i < t.Msgs; i++)
 {
-    await nats2.PublishAsync(t.Subject, payload);
+    await nats2.PublishAsync(subject, payload);
 }
 
 Console.WriteLine($"[{stopwatch.Elapsed}]");

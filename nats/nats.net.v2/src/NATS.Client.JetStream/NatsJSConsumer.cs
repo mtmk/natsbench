@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using NATS.Client.Core;
+using NATS.Client.Core.Commands;
 using NATS.Client.JetStream.Models;
 
 namespace NATS.Client.JetStream;
@@ -41,7 +42,7 @@ public class NatsJSConsumer
             shouldPrefetch = false;
         }
 
-        var inbox = $"_INBOX.{Guid.NewGuid():n}";
+        var inbox = new NatsSubject($"_INBOX.{Guid.NewGuid():n}");
 
         var requestOpts = default(NatsSubOpts);
         var request = new ConsumerGetnextRequest { Batch = prefetch };

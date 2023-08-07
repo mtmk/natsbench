@@ -15,7 +15,7 @@ public enum NatsConnectionState
     Reconnecting,
 }
 
-public partial class NatsConnection : IAsyncDisposable, INatsConnection
+public partial class NatsConnection : IAsyncDisposable//, INatsConnection
 {
 #pragma warning disable SA1401
     /// <summary>
@@ -165,7 +165,7 @@ public partial class NatsConnection : IAsyncDisposable, INatsConnection
         pingCommand.SetCanceled();
     }
 
-    internal ValueTask PublishToClientHandlersAsync(string subject, string? replyTo, int sid, in ReadOnlySequence<byte>? headersBuffer, in ReadOnlySequence<byte> payloadBuffer)
+    internal ValueTask PublishToClientHandlersAsync(NatsSubject subject, NatsSubject? replyTo, int sid, in ReadOnlySequence<byte>? headersBuffer, in ReadOnlySequence<byte> payloadBuffer)
     {
         return _subscriptionManager.PublishToClientHandlersAsync(subject, replyTo, sid, headersBuffer, payloadBuffer);
     }
@@ -187,7 +187,7 @@ public partial class NatsConnection : IAsyncDisposable, INatsConnection
     }
 
     // called only internally
-    internal ValueTask SubscribeCoreAsync(int sid, string subject, string? queueGroup, int? maxMsgs, CancellationToken cancellationToken)
+    internal ValueTask SubscribeCoreAsync(int sid, NatsSubject subject, string? queueGroup, int? maxMsgs, CancellationToken cancellationToken)
     {
         var command = AsyncSubscribeCommand.Create(_pool, GetCancellationTimer(cancellationToken), sid, subject, queueGroup, maxMsgs);
         return EnqueueAndAwaitCommandAsync(command);

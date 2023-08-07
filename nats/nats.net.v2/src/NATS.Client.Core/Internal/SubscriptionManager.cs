@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
+using NATS.Client.Core.Commands;
 
 namespace NATS.Client.Core.Internal;
 
@@ -10,7 +11,7 @@ internal interface ISubscriptionManager
     public ValueTask RemoveAsync(INatsSub sub);
 }
 
-internal record struct SidMetadata(string Subject, WeakReference<INatsSub> WeakReference);
+internal record struct SidMetadata(NatsSubject Subject, WeakReference<INatsSub> WeakReference);
 
 internal sealed record SubscriptionMetadata(int Sid);
 
@@ -41,11 +42,11 @@ internal sealed class SubscriptionManager : ISubscriptionManager, IAsyncDisposab
         _cleanupInterval = _connection.Options.SubscriptionCleanUpInterval;
         _timer = Task.Run(CleanupAsync);
         _inboxSubBuilder = new InboxSubBuilder(connection.Options.LoggerFactory.CreateLogger<InboxSubBuilder>());
-        _inboxSubSentinel = new InboxSub(_inboxSubBuilder, nameof(_inboxSubSentinel), default, connection, this);
+        _inboxSubSentinel = new InboxSub(_inboxSubBuilder, new NatsSubject(nameof(_inboxSubSentinel)), default, connection, this);
         _inboxSub = _inboxSubSentinel;
     }
 
-    public IEnumerable<(int Sid, string Subject, string? QueueGroup, int? maxMsgs)> GetExistingSubscriptions()
+    public IEnumerable<(int Sid, NatsSubject Subject, string? QueueGroup, int? maxMsgs)> GetExistingSubscriptions()
     {
         lock (_gate)
         {
@@ -59,10 +60,10 @@ internal sealed class SubscriptionManager : ISubscriptionManager, IAsyncDisposab
         }
     }
 
-    public async ValueTask<T> SubscribeAsync<T>(string subject, NatsSubOpts? opts, INatsSubBuilder<T> builder, CancellationToken cancellationToken)
+    public async ValueTask<T> SubscribeAsync<T>(NatsSubject subject, NatsSubOpts? opts, INatsSubBuilder<T> builder, CancellationToken cancellationToken)
         where T : INatsSub
     {
-        if (subject.StartsWith(_inboxPrefix, StringComparison.Ordinal))
+        if (subject.StartsWith(_inboxPrefix))
         {
             if (Interlocked.CompareExchange(ref _inboxSub, _inboxSubSentinel, _inboxSubSentinel) == _inboxSubSentinel)
             {
@@ -71,7 +72,7 @@ internal sealed class SubscriptionManager : ISubscriptionManager, IAsyncDisposab
                 {
                     if (Interlocked.CompareExchange(ref _inboxSub, _inboxSubSentinel, _inboxSubSentinel) == _inboxSubSentinel)
                     {
-                        var inboxSubject = $"{_inboxPrefix}*";
+                        var inboxSubject = new NatsSubject($"{_inboxPrefix}*");
                         _inboxSub = await SubscribeInternalAsync<InboxSub>(
                             inboxSubject,
                             opts: default,
@@ -95,7 +96,7 @@ internal sealed class SubscriptionManager : ISubscriptionManager, IAsyncDisposab
         }
     }
 
-    public ValueTask PublishToClientHandlersAsync(string subject, string? replyTo, int sid, in ReadOnlySequence<byte>? headersBuffer, in ReadOnlySequence<byte> payloadBuffer)
+    public ValueTask PublishToClientHandlersAsync(NatsSubject subject, NatsSubject? replyTo, int sid, in ReadOnlySequence<byte>? headersBuffer, in ReadOnlySequence<byte> payloadBuffer)
     {
         int? orphanSid = null;
         lock (_gate)
@@ -167,7 +168,7 @@ internal sealed class SubscriptionManager : ISubscriptionManager, IAsyncDisposab
         return _connection.UnsubscribeAsync(subMetadata.Sid);
     }
 
-    private async ValueTask<T> SubscribeInternalAsync<T>(string subject, NatsSubOpts? opts, INatsSubBuilder<T> builder, CancellationToken cancellationToken)
+    private async ValueTask<T> SubscribeInternalAsync<T>(NatsSubject subject, NatsSubOpts? opts, INatsSubBuilder<T> builder, CancellationToken cancellationToken)
         where T : INatsSub
     {
         var sub = builder.Build(subject, opts, connection: _connection, this);

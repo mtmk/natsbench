@@ -10,7 +10,7 @@ public partial class NatsConnection
     /// Publishes and yields immediately unless the command channel is full in which case
     /// waits until there is space in command channel.
     /// </summary>
-    internal ValueTask PubPostAsync(string subject, string? replyTo = default, ReadOnlySequence<byte> payload = default, NatsHeaders? headers = default, CancellationToken cancellationToken = default)
+    internal ValueTask PubPostAsync(NatsSubject subject, NatsSubject? replyTo = default, ReadOnlySequence<byte> payload = default, NatsHeaders? headers = default, CancellationToken cancellationToken = default)
     {
         headers?.SetReadOnly();
 
@@ -29,7 +29,7 @@ public partial class NatsConnection
         }
     }
 
-    internal ValueTask PubModelPostAsync<T>(string subject, T? data, INatsSerializer serializer, string? replyTo = default, NatsHeaders? headers = default, CancellationToken cancellationToken = default)
+    internal ValueTask PubModelPostAsync<T>(NatsSubject subject, T? data, INatsSerializer serializer, NatsSubject? replyTo = default, NatsHeaders? headers = default, CancellationToken cancellationToken = default)
     {
         headers?.SetReadOnly();
 
@@ -48,7 +48,7 @@ public partial class NatsConnection
         }
     }
 
-    internal ValueTask PubAsync(string subject, string? replyTo = default, ReadOnlySequence<byte> payload = default, NatsHeaders? headers = default, CancellationToken cancellationToken = default)
+    internal ValueTask PubAsync(NatsSubject subject, NatsSubject? replyTo = default, ReadOnlySequence<byte> payload = default, NatsHeaders? headers = default, CancellationToken cancellationToken = default)
     {
         headers?.SetReadOnly();
 
@@ -74,7 +74,7 @@ public partial class NatsConnection
         }
     }
 
-    internal ValueTask PubModelAsync<T>(string subject, T? data, INatsSerializer serializer, string? replyTo = default, NatsHeaders? headers = default, CancellationToken cancellationToken = default)
+    internal ValueTask PubModelAsync<T>(NatsSubject subject, T? data, INatsSerializer serializer, NatsSubject? replyTo = default, NatsHeaders? headers = default, CancellationToken cancellationToken = default)
     {
         headers?.SetReadOnly();
 
@@ -100,7 +100,7 @@ public partial class NatsConnection
         }
     }
 
-    internal ValueTask<T> SubAsync<T>(string subject, NatsSubOpts? opts, INatsSubBuilder<T> builder, CancellationToken cancellationToken = default)
+    internal ValueTask<T> SubAsync<T>(NatsSubject subject, NatsSubOpts? opts, INatsSubBuilder<T> builder, CancellationToken cancellationToken = default)
         where T : INatsSub
     {
         if (ConnectionState == NatsConnectionState.Open)

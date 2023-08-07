@@ -4,7 +4,7 @@ namespace NATS.Client.Core.Commands;
 
 internal sealed class AsyncSubscribeCommand : AsyncCommandBase<AsyncSubscribeCommand>
 {
-    private string? _subject;
+    private NatsSubject? _subject;
     private string? _queueGroup;
     private int _sid;
     private int? _maxMsgs;
@@ -13,7 +13,7 @@ internal sealed class AsyncSubscribeCommand : AsyncCommandBase<AsyncSubscribeCom
     {
     }
 
-    public static AsyncSubscribeCommand Create(ObjectPool pool, CancellationTimer timer, int sid, string subject, string? queueGroup, int? maxMsgs)
+    public static AsyncSubscribeCommand Create(ObjectPool pool, CancellationTimer timer, int sid, NatsSubject subject, string? queueGroup, int? maxMsgs)
     {
         if (!TryRent(pool, out var result))
         {
@@ -31,7 +31,7 @@ internal sealed class AsyncSubscribeCommand : AsyncCommandBase<AsyncSubscribeCom
 
     public override void Write(ProtocolWriter writer)
     {
-        writer.WriteSubscribe(_sid, _subject!, _queueGroup, _maxMsgs);
+        writer.WriteSubscribe(_sid, _subject!.Value, _queueGroup, _maxMsgs);
     }
 
     protected override void Reset()
@@ -44,13 +44,13 @@ internal sealed class AsyncSubscribeCommand : AsyncCommandBase<AsyncSubscribeCom
 
 internal sealed class AsyncSubscribeBatchCommand : AsyncCommandBase<AsyncSubscribeBatchCommand>, IBatchCommand
 {
-    private (int sid, string subject, string? queueGroup, int? maxMsgs)[]? _subscriptions;
+    private (int sid, NatsSubject subject, string? queueGroup, int? maxMsgs)[]? _subscriptions;
 
     private AsyncSubscribeBatchCommand()
     {
     }
 
-    public static AsyncSubscribeBatchCommand Create(ObjectPool pool, CancellationTimer timer, (int sid, string subject, string? queueGroup, int? maxMsgs)[]? subscriptions)
+    public static AsyncSubscribeBatchCommand Create(ObjectPool pool, CancellationTimer timer, (int sid, NatsSubject subject, string? queueGroup, int? maxMsgs)[]? subscriptions)
     {
         if (!TryRent(pool, out var result))
         {

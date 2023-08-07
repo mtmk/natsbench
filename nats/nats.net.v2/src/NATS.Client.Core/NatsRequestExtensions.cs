@@ -1,4 +1,5 @@
 using System.Buffers;
+using NATS.Client.Core.Commands;
 
 namespace NATS.Client.Core;
 
@@ -30,7 +31,7 @@ public static class NatsRequestExtensions
     /// </remarks>
     public static async ValueTask<NatsMsg<TReply?>?> RequestAsync<TRequest, TReply>(
         this NatsConnection nats,
-        string subject,
+        NatsSubject subject,
         TRequest? data,
         NatsPubOpts? requestOpts = default,
         NatsSubOpts? replyOpts = default,
@@ -107,7 +108,7 @@ public static class NatsRequestExtensions
     /// </remarks>
     public static async ValueTask<NatsMsg?> RequestAsync(
         this NatsConnection nats,
-        string subject,
+        NatsSubject subject,
         ReadOnlySequence<byte> payload = default,
         NatsPubOpts? requestOpts = default,
         NatsSubOpts? replyOpts = default,

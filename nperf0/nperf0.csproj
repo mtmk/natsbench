@@ -9,7 +9,6 @@
 
     <ItemGroup>
       <ProjectReference Include="..\AlterNats\AlterNats\AlterNats.csproj" />
-      <ProjectReference Include="..\nats\nats.net.v2\tests\NATS.Client.TestUtilities\NATS.Client.TestUtilities.csproj" />
     </ItemGroup>
 
 </Project>

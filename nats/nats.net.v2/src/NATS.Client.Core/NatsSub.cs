@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Threading.Channels;
+using NATS.Client.Core.Commands;
 using NATS.Client.Core.Internal;
 
 namespace NATS.Client.Core;
@@ -34,7 +35,7 @@ public abstract class NatsSubBase : INatsSub
     internal NatsSubBase(
         NatsConnection connection,
         ISubscriptionManager manager,
-        string subject,
+        NatsSubject subject,
         NatsSubOpts? opts)
     {
         _manager = manager;
@@ -77,7 +78,7 @@ public abstract class NatsSubBase : INatsSub
     /// <summary>
     /// The subject name to subscribe to.
     /// </summary>
-    public string Subject { get; }
+    public NatsSubject Subject { get; }
 
     /// <summary>
     /// If specified, the subscriber will join this queue group. Subscribers with the same queue group name,
@@ -150,13 +151,13 @@ public abstract class NatsSubBase : INatsSub
     }
 
     ValueTask INatsSub.ReceiveAsync(
-        string subject,
-        string? replyTo,
+        NatsSubject subject,
+        NatsSubject? replyTo,
         ReadOnlySequence<byte>? headersBuffer,
         ReadOnlySequence<byte> payloadBuffer) =>
         ReceiveInternalAsync(subject, replyTo, headersBuffer, payloadBuffer);
 
-    protected abstract ValueTask ReceiveInternalAsync(string subject, string? replyTo, ReadOnlySequence<byte>? headersBuffer, ReadOnlySequence<byte> payloadBuffer);
+    protected abstract ValueTask ReceiveInternalAsync(NatsSubject subject, NatsSubject? replyTo, ReadOnlySequence<byte>? headersBuffer, ReadOnlySequence<byte> payloadBuffer);
 
     protected void SetException(Exception exception)
     {
@@ -219,7 +220,7 @@ public sealed class NatsSub : NatsSubBase
 
     private readonly Channel<NatsMsg> _msgs;
 
-    internal NatsSub(NatsConnection connection, ISubscriptionManager manager, string subject, NatsSubOpts? opts)
+    internal NatsSub(NatsConnection connection, ISubscriptionManager manager, NatsSubject subject, NatsSubOpts? opts)
         : base(connection, manager, subject, opts) =>
         _msgs = Channel.CreateBounded<NatsMsg>(
             GetChannelOptions(opts?.ChannelOptions));
@@ -249,7 +250,7 @@ public sealed class NatsSub : NatsSubBase
         }
     }
 
-    protected override async ValueTask ReceiveInternalAsync(string subject, string? replyTo, ReadOnlySequence<byte>? headersBuffer, ReadOnlySequence<byte> payloadBuffer)
+    protected override async ValueTask ReceiveInternalAsync(NatsSubject subject, NatsSubject? replyTo, ReadOnlySequence<byte>? headersBuffer, ReadOnlySequence<byte> payloadBuffer)
     {
         ResetIdleTimeout();
 
@@ -276,7 +277,7 @@ public sealed class NatsSub<T> : NatsSubBase
     internal NatsSub(
         NatsConnection connection,
         ISubscriptionManager manager,
-        string subject,
+        NatsSubject subject,
         NatsSubOpts? opts,
         INatsSerializer serializer)
         : base(connection, manager, subject, opts)
@@ -291,7 +292,7 @@ public sealed class NatsSub<T> : NatsSubBase
 
     private INatsSerializer Serializer { get; }
 
-    protected override async ValueTask ReceiveInternalAsync(string subject, string? replyTo, ReadOnlySequence<byte>? headersBuffer, ReadOnlySequence<byte> payloadBuffer)
+    protected override async ValueTask ReceiveInternalAsync(NatsSubject subject, NatsSubject? replyTo, ReadOnlySequence<byte>? headersBuffer, ReadOnlySequence<byte> payloadBuffer)
     {
         ResetIdleTimeout();
 

@@ -1,11 +1,12 @@
 using System.Buffers;
 using System.Collections.Concurrent;
+using NATS.Client.Core.Commands;
 
 namespace NATS.Client.Core.Internal;
 
 internal interface INatsSub : IAsyncDisposable
 {
-    string Subject { get; }
+    NatsSubject Subject { get; }
 
     string? QueueGroup { get; }
 
@@ -17,20 +18,20 @@ internal interface INatsSub : IAsyncDisposable
     /// </summary>
     void Ready();
 
-    ValueTask ReceiveAsync(string subject, string? replyTo, ReadOnlySequence<byte>? headersBuffer, ReadOnlySequence<byte> payloadBuffer);
+    ValueTask ReceiveAsync(NatsSubject subject, NatsSubject? replyTo, ReadOnlySequence<byte>? headersBuffer, ReadOnlySequence<byte> payloadBuffer);
 }
 
 internal interface INatsSubBuilder<out T>
     where T : INatsSub
 {
-    T Build(string subject, NatsSubOpts? opts, NatsConnection connection, ISubscriptionManager manager);
+    T Build(NatsSubject subject, NatsSubOpts? opts, NatsConnection connection, ISubscriptionManager manager);
 }
 
 internal class NatsSubBuilder : INatsSubBuilder<NatsSub>
 {
     public static readonly NatsSubBuilder Default = new();
 
-    public NatsSub Build(string subject, NatsSubOpts? opts, NatsConnection connection, ISubscriptionManager manager)
+    public NatsSub Build(NatsSubject subject, NatsSubOpts? opts, NatsConnection connection, ISubscriptionManager manager)
     {
         return new NatsSub(connection, manager, subject, opts);
     }
@@ -46,7 +47,7 @@ internal class NatsSubModelBuilder<T> : INatsSubBuilder<NatsSub<T>>
     public static NatsSubModelBuilder<T> For(INatsSerializer serializer) =>
         Cache.GetOrAdd(serializer, static s => new NatsSubModelBuilder<T>(s));
 
-    public NatsSub<T> Build(string subject, NatsSubOpts? opts, NatsConnection connection, ISubscriptionManager manager)
+    public NatsSub<T> Build(NatsSubject subject, NatsSubOpts? opts, NatsConnection connection, ISubscriptionManager manager)
     {
         return new NatsSub<T>(connection, manager, subject, opts, _serializer);
     }
