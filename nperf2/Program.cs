@@ -14,8 +14,9 @@ var t = new TestParams
     MaxAllocatedMb = 750,
 };
 
-Console.WriteLine("NATS NET v2 (old) Perf Tests");
+Console.WriteLine("NATS NET v2 Perf Tests");
 Console.WriteLine(t);
+
 
 await using var nats1 = new NatsConnection();
 await using var nats2 = new NatsConnection();
@@ -23,27 +24,29 @@ await using var nats2 = new NatsConnection();
 await nats1.PingAsync();
 await nats2.PingAsync();
 
-var subject = new NatsKey(t.Subject);
-var count = 0;
-var subDone = new ManualResetEventSlim();
-var sub = await nats1.SubscribeAsync<byte[]>(subject, m =>
-{
-    var i = Interlocked.Increment(ref count);
-    if (i == t.Msgs)
-        subDone.Set();
-});
+await using var sub = await nats1.SubscribeAsync(t.Subject);
 
 var stopwatch = Stopwatch.StartNew();
 
-var payload = new byte[t.Size];
+var subReader = Task.Run(async () =>
+{
+    var count = 0;
+    await foreach (var unused in sub.Msgs.ReadAllAsync())
+    {
+        if (++count == t.Msgs)
+            break;
+    }
+});
+
+var payload = new ReadOnlySequence<byte>(new byte[t.Size]);
 for (var i = 0; i < t.Msgs; i++)
 {
-    nats2.PostPublish(subject, payload);
+    await nats2.PublishAsync(t.Subject, payload);
 }
 
 Console.WriteLine($"[{stopwatch.Elapsed}]");
 
-subDone.Wait();
+await subReader;
 
 Console.WriteLine($"[{stopwatch.Elapsed}]");
 

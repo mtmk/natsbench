@@ -8,14 +8,12 @@ internal sealed class PongCommand : CommandBase<PongCommand>
     {
     }
 
-    public static PongCommand Create(ObjectPool pool, CancellationTimer timer)
+    public static PongCommand Create(ObjectPool pool)
     {
         if (!TryRent(pool, out var result))
         {
             result = new PongCommand();
         }
-
-        // result.SetCancellationTimer(timer);
 
         return result;
     }

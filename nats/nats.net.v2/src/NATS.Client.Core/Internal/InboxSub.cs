@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 
 namespace NATS.Client.Core.Internal;
 
-internal class InboxSub : NatsSubBase
+internal class InboxSub : INatsSub
 {
     private readonly InboxSubBuilder _inbox;
     private readonly NatsConnection _connection;
@@ -17,33 +17,37 @@ internal class InboxSub : NatsSubBase
         NatsSubOpts? opts,
         NatsConnection connection,
         ISubscriptionManager manager)
-    : base(connection, manager, subject, opts)
     {
         _inbox = inbox;
         _connection = connection;
         _manager = manager;
+        Subject = subject;
+        QueueGroup = opts?.QueueGroup;
+        PendingMsgs = opts?.MaxMsgs;
     }
 
-    // public ValueTask ReceiveAsync(string subject, string? replyTo, ReadOnlySequence<byte>? headersBuffer, ReadOnlySequence<byte> payloadBuffer)
-    // {
-    //     return _inbox.ReceivedAsync(subject, replyTo, headersBuffer, payloadBuffer, _connection);
-    // }
-    protected override ValueTask ReceiveInternalAsync(
-        string subject,
-        string? replyTo,
-        ReadOnlySequence<byte>? headersBuffer,
-        ReadOnlySequence<byte> payloadBuffer) =>
-        _inbox.ReceivedAsync(subject, replyTo, headersBuffer, payloadBuffer, _connection);
+    public string Subject { get; }
 
-    protected override void TryComplete()
+    public string? QueueGroup { get; }
+
+    public int? PendingMsgs { get; }
+
+    public void Ready()
     {
     }
+
+    public ValueTask ReceiveAsync(string subject, string? replyTo, ReadOnlySequence<byte>? headersBuffer, ReadOnlySequence<byte> payloadBuffer)
+    {
+        return _inbox.ReceivedAsync(subject, replyTo, headersBuffer, payloadBuffer, _connection);
+    }
+
+    public ValueTask DisposeAsync() => _manager.RemoveAsync(this);
 }
 
-internal class InboxSubBuilder : ISubscriptionManager
+internal class InboxSubBuilder : INatsSubBuilder<InboxSub>, ISubscriptionManager
 {
     private readonly ILogger<InboxSubBuilder> _logger;
-    private readonly ConcurrentDictionary<string, ConditionalWeakTable<NatsSubBase, object>> _bySubject = new();
+    private readonly ConcurrentDictionary<string, ConditionalWeakTable<INatsSub, object>> _bySubject = new();
 
     public InboxSubBuilder(ILogger<InboxSubBuilder> logger) => _logger = logger;
 
@@ -52,11 +56,11 @@ internal class InboxSubBuilder : ISubscriptionManager
         return new InboxSub(this, subject, opts, connection, manager);
     }
 
-    public void Register(NatsSubBase sub)
+    public void Register(INatsSub sub)
     {
         _bySubject.AddOrUpdate(
                 sub.Subject,
-                static (_, s) => new ConditionalWeakTable<NatsSubBase, object> { { s, new object() } },
+                static (_, s) => new ConditionalWeakTable<INatsSub, object> { { s, new object() } },
                 static (_, subTable, s) =>
                 {
                     lock (subTable)
@@ -65,7 +69,7 @@ internal class InboxSubBuilder : ISubscriptionManager
                         {
                             // if current subTable is empty, it may be in process of being removed
                             // return a new object
-                            return new ConditionalWeakTable<NatsSubBase, object> { { s, new object() } };
+                            return new ConditionalWeakTable<INatsSub, object> { { s, new object() } };
                         }
 
                         // the updateValueFactory delegate can be called multiple times
@@ -93,7 +97,7 @@ internal class InboxSubBuilder : ISubscriptionManager
         }
     }
 
-    public ValueTask RemoveAsync(NatsSubBase sub)
+    public ValueTask RemoveAsync(INatsSub sub)
     {
         if (!_bySubject.TryGetValue(sub.Subject, out var subTable))
         {

@@ -10,6 +10,6 @@ rem @if %errorlevel% neq 0 exit /b %errorlevel%
 rem mkdir nats.net.v2\src\NATS.Client.Core
 rem @if %errorlevel% neq 0 exit /b %errorlevel%
 
-robocopy ..\..\nats.net.v2\src\NATS.Client.Core nats.net.v2\src\NATS.Client.Core -mir -xd bin obj
+robocopy ..\..\nats.net.v2.old\src\NATS.Client.Core nats.net.v2\src\NATS.Client.Core -mir -xd bin obj
 @if %errorlevel% geq 8 exit /b %errorlevel%
 

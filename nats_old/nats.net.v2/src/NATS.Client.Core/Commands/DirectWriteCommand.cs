@@ -3,7 +3,7 @@ using NATS.Client.Core.Internal;
 
 namespace NATS.Client.Core.Commands;
 
-// public for optimize reusing
+// public fore optimize reusing
 public sealed class DirectWriteCommand : ICommand
 {
     private readonly byte[] _protocol;
@@ -38,8 +38,6 @@ public sealed class DirectWriteCommand : ICommand
         _protocol = protocol;
     }
 
-    bool ICommand.IsCanceled => false;
-
     void ICommand.Return(ObjectPool pool)
     {
     }
@@ -48,9 +46,4 @@ public sealed class DirectWriteCommand : ICommand
     {
         writer.WriteRaw(_protocol);
     }
-
-    // void ICommand.SetCancellationTimer(CancellationTimer timer)
-    // {
-    //     // direct write is not supporting cancellationtimer.
-    // }
 }

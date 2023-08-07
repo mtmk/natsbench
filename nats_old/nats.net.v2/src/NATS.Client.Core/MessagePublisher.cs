@@ -1,12 +1,11 @@
-﻿using System.Buffers;
+using System.Buffers;
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using NATS.Client.Core.Internal;
 
 namespace NATS.Client.Core;
 
-// TODO: Clean up message publisher.
-internal delegate ValueTask PublishMessage(in NatsKey subject, string? replyTo, NatsOptions options, ReadOnlySequence<byte> buffer, object?[] callbacks);
+internal delegate void PublishMessage(NatsOptions options, in ReadOnlySequence<byte> buffer, object?[] callbacks);
 
 internal static class MessagePublisher
 {
@@ -14,20 +13,20 @@ internal static class MessagePublisher
     private static readonly Func<Type, PublishMessage> CreatePublisherValue = CreatePublisher;
     private static readonly ConcurrentDictionary<Type, PublishMessage> PublisherCache = new();
 
-    public static ValueTask PublishAsync(in NatsKey subject, string? replyTo, Type type, NatsOptions options, in ReadOnlySequence<byte> buffer, object?[] callbacks)
+    public static void Publish(Type type, NatsOptions options, in ReadOnlySequence<byte> buffer, object?[] callbacks)
     {
-        return PublisherCache.GetOrAdd(type, CreatePublisherValue).Invoke(subject, replyTo, options, buffer, callbacks);
+        PublisherCache.GetOrAdd(type, CreatePublisherValue).Invoke(options, buffer, callbacks);
     }
 
     private static PublishMessage CreatePublisher(Type type)
     {
         if (type == typeof(byte[]))
         {
-            // return new ByteArrayMessagePublisher().Publish;
+            return new ByteArrayMessagePublisher().Publish;
         }
         else if (type == typeof(ReadOnlyMemory<byte>))
         {
-            return new ReadOnlyMemoryMessagePublisher().PublishAsync;
+            return new ReadOnlyMemoryMessagePublisher().Publish;
         }
 
         var publisher = typeof(MessagePublisher<>).MakeGenericType(type)!;
@@ -104,13 +103,7 @@ internal sealed class MessagePublisher<T>
 
 internal sealed class ByteArrayMessagePublisher
 {
-#pragma warning disable CA1822
-#pragma warning disable VSTHRD200
-#pragma warning disable CS1998
-    public async Task Publish(string subject, string? replyTo, NatsOptions? options, ReadOnlySequence<byte> buffer, object?[] callbacks)
-#pragma warning restore CS1998
-#pragma warning restore VSTHRD200
-#pragma warning restore CA1822
+    public void Publish(NatsOptions options, in ReadOnlySequence<byte> buffer, object?[] callbacks)
     {
         byte[] value;
         try
@@ -139,7 +132,7 @@ internal sealed class ByteArrayMessagePublisher
 
         try
         {
-            if (options is { UseThreadPoolCallback: false })
+            if (!options.UseThreadPoolCallback)
             {
                 foreach (var callback in callbacks!)
                 {
@@ -183,7 +176,7 @@ internal sealed class ByteArrayMessagePublisher
 
 internal sealed class ReadOnlyMemoryMessagePublisher
 {
-    public ValueTask PublishAsync(in NatsKey subject, string? replyTo, NatsOptions? options, ReadOnlySequence<byte> buffer, object?[] callbacks)
+    public void Publish(NatsOptions options, in ReadOnlySequence<byte> buffer, object?[] callbacks)
     {
         ReadOnlyMemory<byte> value;
         try
@@ -207,12 +200,12 @@ internal sealed class ReadOnlyMemoryMessagePublisher
             {
             }
 
-            //return;
+            return;
         }
 
         try
         {
-            if (options is { UseThreadPoolCallback: false })
+            if (!options.UseThreadPoolCallback)
             {
                 foreach (var callback in callbacks!)
                 {
@@ -220,18 +213,7 @@ internal sealed class ReadOnlyMemoryMessagePublisher
                     {
                         try
                         {
-                            if (callback is NatsSubBase natsSub)
-                            {
-                                return natsSub.ReceiveAsync(subject, replyTo, buffer);
-                            }
-                            else if (callback is Action<ReadOnlyMemory<byte>> action)
-                            {
-                                //action.Invoke(value);
-                            }
-                            else
-                            {
-                                throw new NatsException($"Unexpected internal handler type: {callback.GetType().Name}");
-                            }
+                            ((Action<ReadOnlyMemory<byte>>)callback).Invoke(value);
                         }
                         catch (Exception ex)
                         {
@@ -246,8 +228,8 @@ internal sealed class ReadOnlyMemoryMessagePublisher
                 {
                     if (callback != null)
                     {
-                        // var item = ThreadPoolWorkItem<ReadOnlyMemory<byte>>.Create((Action<ReadOnlyMemory<byte>>)callback, value, options!.LoggerFactory);
-                        // ThreadPool.UnsafeQueueUserWorkItem(item, preferLocal: false);
+                        var item = ThreadPoolWorkItem<ReadOnlyMemory<byte>>.Create((Action<ReadOnlyMemory<byte>>)callback, value, options!.LoggerFactory);
+                        ThreadPool.UnsafeQueueUserWorkItem(item, preferLocal: false);
                     }
                 }
             }
@@ -262,7 +244,5 @@ internal sealed class ReadOnlyMemoryMessagePublisher
             {
             }
         }
-
-        return ValueTask.CompletedTask;
     }
 }

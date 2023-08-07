@@ -14,7 +14,7 @@ internal enum NatsSubEndReason
     Exception,
 }
 
-public abstract class NatsSubBase
+public abstract class NatsSubBase : INatsSub
 {
     private readonly ISubscriptionManager _manager;
     private readonly Timer? _timeoutTimer;
@@ -90,13 +90,13 @@ public abstract class NatsSubBase
 
     // Hide from public API using explicit interface implementations
     // since INatsSub is marked as internal.
-    public int? PendingMsgs => _pendingMsgs == -1 ? null : Volatile.Read(ref _pendingMsgs);
+    int? INatsSub.PendingMsgs => _pendingMsgs == -1 ? null : Volatile.Read(ref _pendingMsgs);
 
     internal NatsSubEndReason EndReason => (NatsSubEndReason)Volatile.Read(ref _endReasonRaw);
 
     protected NatsConnection Connection { get; }
 
-    public void Ready()
+    void INatsSub.Ready()
     {
         // Let idle timer start with the first message, in case
         // we're allowed to wait longer for the first message.
@@ -149,7 +149,7 @@ public abstract class NatsSubBase
         return unsubscribeAsync;
     }
 
-    public ValueTask ReceiveAsync(
+    ValueTask INatsSub.ReceiveAsync(
         string subject,
         string? replyTo,
         ReadOnlySequence<byte>? headersBuffer,
@@ -206,26 +206,7 @@ public abstract class NatsSubBase
     }
 }
 
-public interface INatsSub : IAsyncDisposable
-{
-    ChannelReader<NatsMsg> Msgs { get; }
-
-    /// <summary>
-    /// The subject name to subscribe to.
-    /// </summary>
-    string Subject { get; }
-
-    /// <summary>
-    /// If specified, the subscriber will join this queue group. Subscribers with the same queue group name,
-    /// become a queue group, and only one randomly chosen subscriber of the queue group will
-    /// consume a message each time a message is received by the queue group.
-    /// </summary>
-    string? QueueGroup { get; }
-
-    public ValueTask UnsubscribeAsync();
-}
-
-public sealed class NatsSub : NatsSubBase, INatsSub
+public sealed class NatsSub : NatsSubBase
 {
     private static readonly BoundedChannelOptions DefaultChannelOptions =
         new BoundedChannelOptions(1_000)
@@ -288,26 +269,7 @@ public sealed class NatsSub : NatsSubBase, INatsSub
     protected override void TryComplete() => _msgs.Writer.TryComplete();
 }
 
-public interface INatsSub<T> : IAsyncDisposable
-{
-    ChannelReader<NatsMsg<T?>> Msgs { get; }
-
-    /// <summary>
-    /// The subject name to subscribe to.
-    /// </summary>
-    string Subject { get; }
-
-    /// <summary>
-    /// If specified, the subscriber will join this queue group. Subscribers with the same queue group name,
-    /// become a queue group, and only one randomly chosen subscriber of the queue group will
-    /// consume a message each time a message is received by the queue group.
-    /// </summary>
-    string? QueueGroup { get; }
-
-    public ValueTask UnsubscribeAsync();
-}
-
-public sealed class NatsSub<T> : NatsSubBase, INatsSub<T>
+public sealed class NatsSub<T> : NatsSubBase
 {
     private readonly Channel<NatsMsg<T?>> _msgs;
 

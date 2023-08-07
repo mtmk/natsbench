@@ -8,14 +8,12 @@ internal sealed class AsyncFlushCommand : AsyncCommandBase<AsyncFlushCommand>
     {
     }
 
-    public static AsyncFlushCommand Create(ObjectPool pool, CancellationTimer timer)
+    public static AsyncFlushCommand Create(ObjectPool pool)
     {
         if (!TryRent(pool, out var result))
         {
             result = new AsyncFlushCommand();
         }
-
-        result.SetCancellationTimer(timer);
 
         return result;
     }

@@ -10,7 +10,6 @@ internal sealed class UnsubscribeCommand : CommandBase<UnsubscribeCommand>
     {
     }
 
-    // Unsubscribe is fire-and-forget, don't use CancellationTimer.
     public static UnsubscribeCommand Create(ObjectPool pool, int subscriptionId)
     {
         if (!TryRent(pool, out var result))

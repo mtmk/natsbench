@@ -1,8 +1,10 @@
-﻿using System.Text;
+using System.Text;
 
 namespace NATS.Client.Core;
 
-// TODO: Move NatsKey to internal namespace
+/// <summary>
+/// Represents Subject/QueueGroup of NATS
+/// </summary>
 public readonly struct NatsKey : IEquatable<NatsKey>
 {
     public readonly string Key;

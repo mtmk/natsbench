@@ -10,7 +10,7 @@ internal sealed class AsyncConnectCommand : AsyncCommandBase<AsyncConnectCommand
     {
     }
 
-    public static AsyncConnectCommand Create(ObjectPool pool, ClientOptions connectOptions, CancellationTimer timer)
+    public static AsyncConnectCommand Create(ObjectPool pool, ClientOptions connectOptions)
     {
         if (!TryRent(pool, out var result))
         {
@@ -18,7 +18,6 @@ internal sealed class AsyncConnectCommand : AsyncCommandBase<AsyncConnectCommand
         }
 
         result._clientOptions = connectOptions;
-        result.SetCancellationTimer(timer);
 
         return result;
     }

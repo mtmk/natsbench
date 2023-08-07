@@ -59,25 +59,25 @@ Console.WriteLine($"Starting [subject={subject}, msgs={msgs:n0}, msgsize={size}]
 
 
 
-await using var nats1 = new NATS.Client.Core.NatsConnection();
-await nats1.PingAsync();
-await using var nats2 = new NATS.Client.Core.NatsConnection();
-await nats2.PingAsync();
-var natsKey = new NATS.Client.Core.NatsKey(subject);
-var stopwatch = Stopwatch.StartNew();
-var sub = await nats1.SubscribeAsync(subject);
-var bytes = new byte[size];
-for (int j = 0; j < msgs; j++)
-{
-    nats2.PostPublish(natsKey, bytes);
-}
-Console.WriteLine(stopwatch.Elapsed);
-sub.r.Wait();
+// await using var nats1 = new NATS.Client.Core.NatsConnection();
+// await nats1.PingAsync();
+// await using var nats2 = new NATS.Client.Core.NatsConnection();
+// await nats2.PingAsync();
+// var natsKey = new NATS.Client.Core.NatsKey(subject);
+// var stopwatch = Stopwatch.StartNew();
+// var sub = await nats1.SubscribeAsync(subject);
+// var bytes = new byte[size];
+// for (int j = 0; j < msgs; j++)
+// {
+//     nats2.PostPublish(natsKey, bytes);
+// }
+// Console.WriteLine(stopwatch.Elapsed);
+// sub.r.Wait();
 
 
 
 
-var elapsed = stopwatch.Elapsed;
-var totalSeconds = elapsed.TotalSeconds;
-Console.WriteLine($"pub/sub stats: {2 * msgs / totalSeconds:n0} msgs/sec ~ {2 * msgs * size / (1024.0 * 1024.0) / totalSeconds:n2} MB/sec");
-Console.WriteLine(elapsed);
+// var elapsed = stopwatch.Elapsed;
+// var totalSeconds = elapsed.TotalSeconds;
+// Console.WriteLine($"pub/sub stats: {2 * msgs / totalSeconds:n0} msgs/sec ~ {2 * msgs * size / (1024.0 * 1024.0) / totalSeconds:n2} MB/sec");
+// Console.WriteLine(elapsed);

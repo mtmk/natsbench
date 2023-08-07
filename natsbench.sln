@@ -95,6 +95,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "nperf1", "nperf1\nperf1.csp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "nperf0", "nperf0\nperf0.csproj", "{2115F246-F8D8-4C87-851D-643C8184B177}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "nperf2", "nperf2\nperf2.csproj", "{5FC2426B-4040-4839-8485-FD3CED768B41}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -216,6 +218,10 @@ Global
 		{2115F246-F8D8-4C87-851D-643C8184B177}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2115F246-F8D8-4C87-851D-643C8184B177}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2115F246-F8D8-4C87-851D-643C8184B177}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5FC2426B-4040-4839-8485-FD3CED768B41}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5FC2426B-4040-4839-8485-FD3CED768B41}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5FC2426B-4040-4839-8485-FD3CED768B41}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5FC2426B-4040-4839-8485-FD3CED768B41}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{60BEF34F-572D-477F-943F-16B869FDE06B} = {B3CCFF33-B33D-45E4-AEE1-778D5A2347D1}

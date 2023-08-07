@@ -1,10 +1,9 @@
-﻿using System.Buffers;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Text.RegularExpressions;
 
 var t = new TestParams
 {
-    Msgs = 3_000_000,
+    Msgs = 10_000_000,
     Size = 128,
     Subject = "test",
     PubTasks = 10,
@@ -13,22 +12,11 @@ var t = new TestParams
     MaxAllocatedMb = 750,
 };
 
-Console.WriteLine("NATS NET v2 Perf Tests");
+Console.WriteLine("AlterNats Perf Tests");
 Console.WriteLine(t);
 
-await using var server = NATS.Client.Core.Tests.NatsServer.Start();
-
-Console.WriteLine("\nRunning nats bench");
-var natsBenchTotalMsgs = RunNatsBench(server.ClientUrl, t);
-
-await using var nats1 = new AlterNats.NatsConnection(AlterNats.NatsOptions.Default with
-{
-    Url = server.ClientUrl,
-});
-await using var nats2 = new AlterNats.NatsConnection(AlterNats.NatsOptions.Default with
-{
-    Url = server.ClientUrl,
-});
+await using var nats1 = new AlterNats.NatsConnection();
+await using var nats2 = new AlterNats.NatsConnection();
 
 await nats1.PingAsync();
 await nats2.PingAsync();
@@ -73,8 +61,6 @@ var memoryMb = Process.GetCurrentProcess().PrivateMemorySize64 / meg;
 Console.WriteLine();
 Console.WriteLine($"{totalMsgs:n0} msgs/sec ~ {totalSizeMb:n2} MB/sec");
 
-var r = totalMsgs / natsBenchTotalMsgs;
-Result.Add($"nats bench comparison: {r:n2} (> {t.MaxNatsBenchRatio})", () => r > t.MaxNatsBenchRatio);
 Result.Add($"memory usage: {memoryMb:n2} MB (< {t.MaxMemoryMb} MB)", () => memoryMb < t.MaxMemoryMb);
 
 var allocatedMb = GC.GetTotalAllocatedBytes() / meg;
