@@ -95,6 +95,7 @@ public abstract partial class NatsConnectionTest
 
         var serverOptions = new NatsServerOptionsBuilder()
             .UseTransport(_transportType)
+            .Trace()
             .AddServerConfig(serverConfig)
             .Build();
 
