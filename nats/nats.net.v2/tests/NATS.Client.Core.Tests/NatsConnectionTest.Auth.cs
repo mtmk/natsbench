@@ -102,8 +102,8 @@ public abstract partial class NatsConnectionTest
         
         Log($"xxxxx {name} # # # #  S T A R T  # # # #");
 
-        try
-        {
+        //try
+        //{
             Log($"AUTH TEST {name}");
 
             var serverOptions = new NatsServerOptionsBuilder()
@@ -128,8 +128,8 @@ public abstract partial class NatsConnectionTest
             await using var subConnection = server.CreateClientConnection(clientOptions);
             await using var pubConnection = server.CreateClientConnection(clientOptions);
 
-            var signalComplete1 = new WaitSignal();
-            var signalComplete2 = new WaitSignal();
+            var signalComplete1 = new WaitSignal(timeout: TimeSpan.FromSeconds(20));
+            var signalComplete2 = new WaitSignal(timeout: TimeSpan.FromSeconds(20));
 
             var natsSub = await subConnection.SubscribeAsync<int>(subject);
             var register = natsSub.Register(x =>
@@ -168,10 +168,10 @@ public abstract partial class NatsConnectionTest
             await register;
 
             Log($"xxxxx {name} # # # #  E N D  # # # #");
-        }
-        catch (Exception e)
-        {
-            Log($"xxxxx {name} # # # #  !!!!!!!!!! FAILED !!!!!!!!!  # # # # {e}");
-        }
+        //}
+        //catch (Exception e)
+        //{
+        //    Log($"xxxxx {name} # # # #  !!!!!!!!!! FAILED !!!!!!!!!  # # # # {e}");
+        //}
     }
 }
