@@ -150,12 +150,21 @@ public sealed class NatsServerOptions : IDisposable
 
     public int? WebSocketPort => _lazyWebSocketPort.Value;
 
+    public int? StaticServerPort { get; set; }
+    public int? StaticClusteringPort { get; set; }
+    public int? StaticWebSocketPort { get; set; }
+    
+    public int? SelectedServerPort { get; set; }
+    public int? SelectedClusteringPort { get; set; }
+    public int? SelectedWebSocketPort { get; set; }
+    
     public string ConfigFileContents
     {
         get
         {
+            SelectedServerPort = StaticServerPort ?? ServerPort;            
             var sb = new StringBuilder();
-            sb.AppendLine($"port: {ServerPort}");
+            sb.AppendLine($"port: {SelectedServerPort}");
 
             if (Trace)
             {
@@ -164,17 +173,19 @@ public sealed class NatsServerOptions : IDisposable
 
             if (EnableWebSocket)
             {
+                SelectedWebSocketPort = StaticWebSocketPort ?? WebSocketPort;
                 sb.AppendLine("websocket {");
-                sb.AppendLine($"  port: {WebSocketPort}");
+                sb.AppendLine($"  port: {SelectedWebSocketPort}");
                 sb.AppendLine("  no_tls: true");
                 sb.AppendLine("}");
             }
 
             if (EnableClustering)
             {
+                SelectedClusteringPort = StaticClusteringPort ?? ClusteringPort;
                 sb.AppendLine("cluster {");
                 sb.AppendLine("  name: nats");
-                sb.AppendLine($"  port: {ClusteringPort}");
+                sb.AppendLine($"  port: {SelectedClusteringPort}");
                 sb.AppendLine($"  routes: [{_routes}]");
                 sb.AppendLine("}");
             }
