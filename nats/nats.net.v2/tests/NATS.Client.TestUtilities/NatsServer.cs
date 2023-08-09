@@ -256,11 +256,12 @@ public class NatsServer : IAsyncDisposable
     {
         for (var i = 0; i < reTryCount; i++)
         {
+            NatsConnection nats = null;
             try
             {
                 var clientOptions = ClientOptions(options ?? NatsOptions.Default);
                 Console.WriteLine($"##########   CLIENT-CONNECT {clientOptions.Url}");
-                var nats = new NatsConnection(clientOptions);
+                nats = new NatsConnection(clientOptions);
 
                 try
                 {
@@ -281,7 +282,7 @@ public class NatsServer : IAsyncDisposable
             }
             catch
             {
-                // ignore
+                nats?.DisposeAsync();
             }
         }
 
