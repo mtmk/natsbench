@@ -98,6 +98,7 @@ public abstract partial class NatsConnectionTest
         {
             op.WriteLine($"[TEST] {DateTime.UtcNow:HH:mm:ss.fff} {msg}");    
         }
+        Log("# # # #  S T A R T  # # # #");
         Log($"AUTH TEST {name}");
 
         var serverOptions = new NatsServerOptionsBuilder()
@@ -160,5 +161,7 @@ public abstract partial class NatsConnectionTest
 
         await natsSub.DisposeAsync();
         await register;
+        
+        Log("# # # #  E N D  # # # #");
     }
 }
