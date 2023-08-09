@@ -134,7 +134,7 @@ public abstract partial class NatsConnectionTest
             var natsSub = await subConnection.SubscribeAsync<int>(subject);
             var register = natsSub.Register(x =>
             {
-                Log($"Received: {x}");
+                Log($"xxxxx Received: {x}");
                 if (x.Data == 1)
                     signalComplete1.Pulse();
                 if (x.Data == 2)
