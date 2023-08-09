@@ -394,13 +394,7 @@ public partial class NatsConnection : IAsyncDisposable, INatsConnection
             // receive COMMAND response (PONG or ERROR)
             await waitForPongOrErrorSignal.Task.ConfigureAwait(false);
 
-            if (reconnect)
-            {
-                Console.WriteLine("XXXXXXXXXX RECONNECT...");
-                // Reestablish subscriptions and consumers
-                await SubscriptionManager.ReconnectAsync(_disposedCancellationTokenSource.Token).ConfigureAwait(false);
-                Console.WriteLine("XXXXXXXXXX RECONNECT DONE.");
-            }
+
         }
         catch (Exception)
         {
@@ -505,6 +499,14 @@ public partial class NatsConnection : IAsyncDisposable, INatsConnection
                 _waitForOpenConnection.TrySetResult();
                 _ = Task.Run(ReconnectLoop);
                 ConnectionOpened?.Invoke(this, url?.ToString() ?? string.Empty);
+            }
+            
+            //if (reconnect)
+            {
+                Console.WriteLine("XXXXXXXXXX RECONNECT...");
+                // Reestablish subscriptions and consumers
+                await SubscriptionManager.ReconnectAsync(_disposedCancellationTokenSource.Token).ConfigureAwait(false);
+                Console.WriteLine("XXXXXXXXXX RECONNECT DONE.");
             }
         }
         catch (Exception ex)
