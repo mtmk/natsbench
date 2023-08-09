@@ -260,13 +260,16 @@ public class NatsServer : IAsyncDisposable
             try
             {
                 var clientOptions = ClientOptions(options ?? NatsOptions.Default);
-                Console.WriteLine($"##########   CLIENT-CONNECT {clientOptions.Url}");
+                Console.WriteLine($"##########   CLIENT-CONNECT-{i} {clientOptions.Url}");
                 nats = new NatsConnection(clientOptions);
 
                 try
                 {
 #pragma warning disable CA2012
-                    nats.PingAsync().GetAwaiter().GetResult();
+                    nats.PublishAsync($"__TEST_CLIENT_CONNECT.{i}",opts:new NatsPubOpts
+                    {
+                        WaitUntilSent = true,
+                    }).GetAwaiter().GetResult();
 #pragma warning restore CA2012
                 }
                 catch (NatsException e)
