@@ -396,8 +396,10 @@ public partial class NatsConnection : IAsyncDisposable, INatsConnection
 
             if (reconnect)
             {
+                Console.WriteLine("XXXXXXXXXX RECONNECT...");
                 // Reestablish subscriptions and consumers
                 await SubscriptionManager.ReconnectAsync(_disposedCancellationTokenSource.Token).ConfigureAwait(false);
+                Console.WriteLine("XXXXXXXXXX RECONNECT DONE.");
             }
         }
         catch (Exception)
