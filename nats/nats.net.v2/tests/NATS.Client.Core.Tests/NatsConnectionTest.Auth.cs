@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace NATS.Client.Core.Tests;
 
 public abstract partial class NatsConnectionTest
@@ -95,6 +97,7 @@ public abstract partial class NatsConnectionTest
 
         var serverOptions = new NatsServerOptionsBuilder()
             .UseTransport(_transportType)
+            .Trace()
             .KeepPorts()
             .AddServerConfig(serverConfig)
             .Build();
