@@ -405,17 +405,23 @@ public partial class NatsConnection : IAsyncDisposable, INatsConnection
     }
 
     private int _rc;
+    private readonly SemaphoreSlim _reconnectLock = new(initialCount: 1, maxCount: 1);
+
     private async void ReconnectLoop()
     {
         var rc = Interlocked.Increment(ref _rc);
+        await _reconnectLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try
         {
-            Console.WriteLine($"XXXXXXXXXX[{rc}] ReconnectLoop...");
+            Console.WriteLine($"XXXXXXXXXX[{rc}] ReconnectLoop wait...");
 
             // If dispose this client, WaitForClosed throws OperationCanceledException so stop reconnect-loop correctly.
             await _socket!.WaitForClosed.ConfigureAwait(false);
 
-            _logger.LogTrace($"Detect connection {_name} closed, start to cleanup current connection and start to reconnect.");
+            Console.WriteLine($"XXXXXXXXXX[{rc}] ReconnectLoop reconnecting...");
+
+            _logger.LogTrace(
+                $"Detect connection {_name} closed, start to cleanup current connection and start to reconnect.");
             lock (_gate)
             {
                 ConnectionState = NatsConnectionState.Reconnecting;
@@ -432,9 +438,11 @@ public partial class NatsConnection : IAsyncDisposable, INatsConnection
 
             var defaultScheme = _currentConnectUri!.Uri.Scheme;
             var urls = (Options.NoRandomize
-                ? WritableServerInfo?.ClientConnectUrls?.Select(x => new NatsUri(x, false, defaultScheme)).Distinct().ToArray()
-                : WritableServerInfo?.ClientConnectUrls?.Select(x => new NatsUri(x, false, defaultScheme)).OrderBy(_ => Guid.NewGuid()).Distinct().ToArray())
-                    ?? Array.Empty<NatsUri>();
+                           ? WritableServerInfo?.ClientConnectUrls?.Select(x => new NatsUri(x, false, defaultScheme))
+                               .Distinct().ToArray()
+                           : WritableServerInfo?.ClientConnectUrls?.Select(x => new NatsUri(x, false, defaultScheme))
+                               .OrderBy(_ => Guid.NewGuid()).Distinct().ToArray())
+                       ?? Array.Empty<NatsUri>();
             if (urls.Length == 0)
                 urls = Options.GetSeedUris();
 
@@ -444,7 +452,7 @@ public partial class NatsConnection : IAsyncDisposable, INatsConnection
             _currentConnectUri = null;
             var urlEnumerator = urls.AsEnumerable().GetEnumerator();
             NatsUri? url = null;
-        CONNECT_AGAIN:
+            CONNECT_AGAIN:
             try
             {
                 if (urlEnumerator.MoveNext())
@@ -504,7 +512,7 @@ public partial class NatsConnection : IAsyncDisposable, INatsConnection
                 _ = Task.Run(ReconnectLoop);
                 ConnectionOpened?.Invoke(this, url?.ToString() ?? string.Empty);
             }
-            
+
             //if (reconnect)
             {
                 Console.WriteLine($"XXXXXXXXXX[{rc}] RECONNECT...");
@@ -517,7 +525,12 @@ public partial class NatsConnection : IAsyncDisposable, INatsConnection
         {
             if (ex is OperationCanceledException)
                 return;
+            Console.WriteLine($"XXXXXXXXXX[{rc}] RECONNECT LOOP ERROR: {ex}");
             _logger.LogError(ex, "Unknown error, loop stopped and connection is invalid state.");
+        }
+        finally
+        {
+            _reconnectLock.Release();
         }
     }
 
