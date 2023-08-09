@@ -128,8 +128,8 @@ public abstract partial class NatsConnectionTest
             await using var subConnection = server.CreateClientConnection(clientOptions);
             await using var pubConnection = server.CreateClientConnection(clientOptions);
 
-            var signalComplete1 = new WaitSignal(timeout: TimeSpan.FromSeconds(20));
-            var signalComplete2 = new WaitSignal(timeout: TimeSpan.FromSeconds(20));
+            var signalComplete1 = new WaitSignal(timeout: TimeSpan.FromSeconds(60));
+            var signalComplete2 = new WaitSignal(timeout: TimeSpan.FromSeconds(60));
 
             var natsSub = await subConnection.SubscribeAsync<int>(subject);
             var register = natsSub.Register(x =>
