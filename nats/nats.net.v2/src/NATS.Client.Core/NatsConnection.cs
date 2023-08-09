@@ -513,12 +513,29 @@ public partial class NatsConnection : IAsyncDisposable, INatsConnection
                 ConnectionOpened?.Invoke(this, url?.ToString() ?? string.Empty);
             }
 
-            //if (reconnect)
+            ThreadPool.UnsafeQueueUserWorkItem(_ =>
             {
                 Console.WriteLine($"XXXXXXXXXX[{rc}] RECONNECT...");
                 // Reestablish subscriptions and consumers
-                await SubscriptionManager.ReconnectAsync(_disposedCancellationTokenSource.Token).ConfigureAwait(false);
+                try
+                {
+                    SubscriptionManager.ReconnectAsync(_disposedCancellationTokenSource.Token)
+                        .GetAwaiter()
+                        .GetResult();
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine($"XXXXXXXXXX[{rc}] RECONNECT ERROR: {e}");
+                }
+
                 Console.WriteLine($"XXXXXXXXXX[{rc}] RECONNECT DONE.");
+            }, null);
+            //if (reconnect)
+            {
+                // Console.WriteLine($"XXXXXXXXXX[{rc}] RECONNECT...");
+                // // Reestablish subscriptions and consumers
+                // await SubscriptionManager.ReconnectAsync(_disposedCancellationTokenSource.Token).ConfigureAwait(false);
+                // Console.WriteLine($"XXXXXXXXXX[{rc}] RECONNECT DONE.");
             }
         }
         catch (Exception ex)
