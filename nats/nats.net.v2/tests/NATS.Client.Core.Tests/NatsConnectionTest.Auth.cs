@@ -93,7 +93,12 @@ public abstract partial class NatsConnectionTest
     [MemberData(nameof(GetAuthConfigs))]
     public async Task UserCredentialAuthTest(string name, string serverConfig, NatsOptions clientOptions)
     {
-        _output.WriteLine($"AUTH TEST {name}");
+        var op = new ConsoleOutputHelper();
+        void Log(string msg)
+        {
+            op.WriteLine($"[TEST] {DateTime.UtcNow:HH:mm:ss.fff} {msg}");    
+        }
+        Log($"AUTH TEST {name}");
 
         var serverOptions = new NatsServerOptionsBuilder()
             .UseTransport(_transportType)
@@ -102,11 +107,11 @@ public abstract partial class NatsConnectionTest
             .AddServerConfig(serverConfig)
             .Build();
 
-        await using var server = NatsServer.Start(_output, serverOptions, clientOptions);
+        await using var server = NatsServer.Start(op, serverOptions, clientOptions);
 
         var subject = Guid.NewGuid().ToString("N");
 
-        _output.WriteLine("TRY ANONYMOUS CONNECTION");
+        Log("TRY ANONYMOUS CONNECTION");
         {
             await using var failConnection = server.CreateClientConnection(ignoreAuthorizationException: true);
             var natsException =
@@ -123,7 +128,7 @@ public abstract partial class NatsConnectionTest
         var natsSub = await subConnection.SubscribeAsync<int>(subject);
         var register = natsSub.Register(x =>
         {
-            _output.WriteLine($"Received: {x}");
+            Log($"Received: {x}");
             if (x.Data == 1)
                 signalComplete1.Pulse();
             if (x.Data == 2)
@@ -132,24 +137,24 @@ public abstract partial class NatsConnectionTest
 
         await subConnection.PingAsync(); // wait for subscribe complete
 
-        _output.WriteLine("AUTHENTICATED CONNECTION");
+        Log("AUTHENTICATED CONNECTION");
         await pubConnection.PublishAsync(subject, 1);
         await signalComplete1;
 
         var disconnectSignal1 = subConnection.ConnectionDisconnectedAsAwaitable();
         var disconnectSignal2 = pubConnection.ConnectionDisconnectedAsAwaitable();
 
-        _output.WriteLine("TRY DISCONNECT START");
+        Log("TRY DISCONNECT START");
         await server.DisposeAsync(); // disconnect server
         await disconnectSignal1;
         await disconnectSignal2;
 
-        _output.WriteLine("START NEW SERVER");
-        await using var newServer = NatsServer.Start(_output, serverOptions, clientOptions);
+        Log("START NEW SERVER");
+        await using var newServer = NatsServer.Start(op, serverOptions, clientOptions);
         await subConnection.ConnectAsync(); // wait open again
         await pubConnection.ConnectAsync(); // wait open again
 
-        _output.WriteLine("AUTHENTICATED RE-CONNECTION");
+        Log("AUTHENTICATED RE-CONNECTION");
         await pubConnection.PublishAsync(subject, 2);
         await signalComplete2;
 
