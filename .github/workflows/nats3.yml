@@ -1,5 +1,5 @@
 name: nats3
-on: workflow_dispatch
+on: push
 jobs:
 
   ubuntu_build:
