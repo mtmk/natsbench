@@ -406,19 +406,19 @@ public partial class NatsConnection : IAsyncDisposable, INatsConnection
 
     private int _rc;
     private readonly SemaphoreSlim _reconnectLock = new(initialCount: 1, maxCount: 1);
-
+    private int _pid = Environment.ProcessId;
     private async void ReconnectLoop()
     {
         var rc = Interlocked.Increment(ref _rc);
         await _reconnectLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try
         {
-            Console.WriteLine($"XXXXXXXXXX[{rc}] ReconnectLoop wait...");
+            Console.WriteLine($"XXXXXXXXXX[{_pid}][{rc}] ReconnectLoop wait...");
 
             // If dispose this client, WaitForClosed throws OperationCanceledException so stop reconnect-loop correctly.
             await _socket!.WaitForClosed.ConfigureAwait(false);
 
-            Console.WriteLine($"XXXXXXXXXX[{rc}] ReconnectLoop reconnecting...");
+            Console.WriteLine($"XXXXXXXXXX[{_pid}][{rc}] ReconnectLoop reconnecting...");
 
             _logger.LogTrace(
                 $"Detect connection {_name} closed, start to cleanup current connection and start to reconnect.");
@@ -515,20 +515,20 @@ public partial class NatsConnection : IAsyncDisposable, INatsConnection
 
             ThreadPool.UnsafeQueueUserWorkItem(_ =>
             {
-                Console.WriteLine($"XXXXXXXXXX[{rc}] RECONNECT...");
+                Console.WriteLine($"XXXXXXXXXX[{_pid}][{rc}] RECONNECT...");
                 // Reestablish subscriptions and consumers
                 try
                 {
-                    SubscriptionManager.ReconnectAsync(_disposedCancellationTokenSource.Token)
+                    SubscriptionManager.ReconnectAsync(rc, _disposedCancellationTokenSource.Token)
                         .GetAwaiter()
                         .GetResult();
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine($"XXXXXXXXXX[{rc}] RECONNECT ERROR: {e}");
+                    Console.WriteLine($"XXXXXXXXXX[{_pid}][{rc}] RECONNECT ERROR: {e}");
                 }
 
-                Console.WriteLine($"XXXXXXXXXX[{rc}] RECONNECT DONE.");
+                Console.WriteLine($"XXXXXXXXXX[{_pid}][{rc}] RECONNECT DONE.");
             }, null);
             //if (reconnect)
             {

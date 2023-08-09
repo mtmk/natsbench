@@ -130,13 +130,15 @@ internal sealed class SubscriptionManager : ISubscriptionManager, IAsyncDisposab
         return _connection.UnsubscribeAsync(subMetadata.Sid);
     }
 
-    public async ValueTask ReconnectAsync(CancellationToken cancellationToken)
+    private int _pid = Environment.ProcessId;
+    public async ValueTask ReconnectAsync(int rc, CancellationToken cancellationToken)
     {
         foreach (var (sid, sidMetadata) in _bySid)
         {
             if (sidMetadata.WeakReference.TryGetTarget(out var sub))
             {
                 // yield return (sid, sub.Subject, sub.QueueGroup, sub.PendingMsgs);
+                Console.WriteLine($"XXXXXXXXXX[{_pid}][{rc}] SubscribeCoreAsync:{sid} {sub.Subject}");
                 await _connection
                     .SubscribeCoreAsync(sid, sub.Subject, sub.QueueGroup, sub.PendingMsgs, cancellationToken)
                     .ConfigureAwait(false);
