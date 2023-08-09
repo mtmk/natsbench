@@ -93,7 +93,7 @@ public abstract partial class NatsConnectionTest
     [MemberData(nameof(GetAuthConfigs))]
     public async Task UserCredentialAuthTest(string name, string serverConfig, NatsOptions clientOptions)
     {
-        var op = new ConsoleOutputHelper();
+        var op = new ConsoleOutputHelper(name);
         void Log(string msg)
         {
             op.WriteLine($"[TEST] {DateTime.UtcNow:HH:mm:ss.fff} {msg}");    

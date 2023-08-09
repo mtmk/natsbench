@@ -686,13 +686,20 @@ public class NullOutputHelper : ITestOutputHelper
 
 public class ConsoleOutputHelper : ITestOutputHelper
 {
+    private readonly string _prefix;
+
+    public ConsoleOutputHelper(string prefix)
+    {
+        _prefix = prefix;
+    }
+
     public void WriteLine(string message)
     {
-        Console.WriteLine(message);
+        Console.WriteLine($"###[{_prefix}]### {message}");
     }
 
     public void WriteLine(string format, params object[] args)
     {
-        Console.WriteLine(string.Format(format, args: args));
+        WriteLine(string.Format(format, args: args));
     }
 }
