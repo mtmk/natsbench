@@ -161,8 +161,10 @@ public class NatsServer : IAsyncDisposable
         {
             try
             {
+                var natsOptions = clientOptions ?? NatsOptions.Default;
+                Console.WriteLine($"########## CONNECT-{i} {natsOptions.Url}");
                 server = new NatsServer(outputHelper, options);
-                nats = server.CreateClientConnection(clientOptions ?? NatsOptions.Default, reTryCount: 3);
+                nats = server.CreateClientConnection(natsOptions, reTryCount: 3);
 #pragma warning disable CA2012
                 return server;
             }
