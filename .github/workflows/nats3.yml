@@ -19,7 +19,9 @@ jobs:
       - name: install dotnet
         uses: actions/setup-dotnet@v3
         with:
-          dotnet-version: [6.x, 7.x]
+          dotnet-version: |
+            6.x
+            7.x
           
       - name: tools
         run: |
