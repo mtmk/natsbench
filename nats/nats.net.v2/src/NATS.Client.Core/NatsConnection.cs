@@ -513,29 +513,29 @@ public partial class NatsConnection : IAsyncDisposable, INatsConnection
                 ConnectionOpened?.Invoke(this, url?.ToString() ?? string.Empty);
             }
 
-            ThreadPool.UnsafeQueueUserWorkItem(_ =>
-            {
-                Console.WriteLine($"XXXXXXXXXX[{_pid}][{rc}] RECONNECT...");
-                // Reestablish subscriptions and consumers
-                try
-                {
-                    SubscriptionManager.ReconnectAsync(rc, _disposedCancellationTokenSource.Token)
-                        .GetAwaiter()
-                        .GetResult();
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine($"XXXXXXXXXX[{_pid}][{rc}] RECONNECT ERROR: {e}");
-                }
-
-                Console.WriteLine($"XXXXXXXXXX[{_pid}][{rc}] RECONNECT DONE.");
-            }, null);
+            // ThreadPool.UnsafeQueueUserWorkItem(_ =>
+            // {
+            //     Console.WriteLine($"XXXXXXXXXX[{_pid}][{rc}] RECONNECT...");
+            //     // Reestablish subscriptions and consumers
+            //     try
+            //     {
+            //         SubscriptionManager.ReconnectAsync(rc, _disposedCancellationTokenSource.Token)
+            //             .GetAwaiter()
+            //             .GetResult();
+            //     }
+            //     catch (Exception e)
+            //     {
+            //         Console.WriteLine($"XXXXXXXXXX[{_pid}][{rc}] RECONNECT ERROR: {e}");
+            //     }
+            //
+            //     Console.WriteLine($"XXXXXXXXXX[{_pid}][{rc}] RECONNECT DONE.");
+            // }, null);
             //if (reconnect)
             {
-                // Console.WriteLine($"XXXXXXXXXX[{rc}] RECONNECT...");
-                // // Reestablish subscriptions and consumers
-                // await SubscriptionManager.ReconnectAsync(_disposedCancellationTokenSource.Token).ConfigureAwait(false);
-                // Console.WriteLine($"XXXXXXXXXX[{rc}] RECONNECT DONE.");
+                Console.WriteLine($"XXXXXXXXXX[{rc}] RECONNECT...");
+                // Reestablish subscriptions and consumers
+                await SubscriptionManager.ReconnectAsync(rc, _disposedCancellationTokenSource.Token).ConfigureAwait(false);
+                Console.WriteLine($"XXXXXXXXXX[{rc}] RECONNECT DONE.");
             }
         }
         catch (Exception ex)
