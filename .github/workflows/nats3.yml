@@ -19,7 +19,7 @@ jobs:
       - name: install dotnet
         uses: actions/setup-dotnet@v3
         with:
-          dotnet-version: 6.x
+          dotnet-version: [6.x, 7.x]
           
       - name: tools
         run: |
@@ -32,7 +32,7 @@ jobs:
         run: nats-server -v
         
       - name: build
-        run: dotnet build --p:WarningLevel=0
+        run: dotnet build --p:WarningLevel=0 nats/nats.net.v2/tests/NATS.Client.Core.Tests
         
       - name: test
         run: dotnet test nats/nats.net.v2/tests/NATS.Client.Core.Tests
