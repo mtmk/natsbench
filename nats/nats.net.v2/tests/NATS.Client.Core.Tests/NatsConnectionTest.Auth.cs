@@ -166,7 +166,7 @@ public abstract partial class NatsConnectionTest
             Log("AUTHENTICATED RE-CONNECTION");
 
             var xx1 = Volatile.Read(ref xx);
-            Retry.Until("xx",
+            await Retry.Until("xx",
                 () => xx1 != Volatile.Read(ref xx),
                 async () => await pubConnection.PublishAsync(subject, 0) 
             );
