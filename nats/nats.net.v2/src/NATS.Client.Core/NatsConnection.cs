@@ -404,10 +404,14 @@ public partial class NatsConnection : IAsyncDisposable, INatsConnection
         }
     }
 
+    private int _rc;
     private async void ReconnectLoop()
     {
+        var rc = Interlocked.Increment(ref _rc);
         try
         {
+            Console.WriteLine($"XXXXXXXXXX[{rc}] ReconnectLoop...");
+
             // If dispose this client, WaitForClosed throws OperationCanceledException so stop reconnect-loop correctly.
             await _socket!.WaitForClosed.ConfigureAwait(false);
 
@@ -503,10 +507,10 @@ public partial class NatsConnection : IAsyncDisposable, INatsConnection
             
             //if (reconnect)
             {
-                Console.WriteLine("XXXXXXXXXX RECONNECT...");
+                Console.WriteLine($"XXXXXXXXXX[{rc}] RECONNECT...");
                 // Reestablish subscriptions and consumers
                 await SubscriptionManager.ReconnectAsync(_disposedCancellationTokenSource.Token).ConfigureAwait(false);
-                Console.WriteLine("XXXXXXXXXX RECONNECT DONE.");
+                Console.WriteLine($"XXXXXXXXXX[{rc}] RECONNECT DONE.");
             }
         }
         catch (Exception ex)
