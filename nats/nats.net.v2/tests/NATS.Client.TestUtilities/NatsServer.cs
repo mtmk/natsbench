@@ -169,6 +169,7 @@ public class NatsServer : IAsyncDisposable
             catch
             {
                 server?.DisposeAsync();
+                Thread.Sleep(1000);
             }
             finally
             {
