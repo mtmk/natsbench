@@ -22,6 +22,7 @@ public sealed class NatsServerOptionsBuilder
     private string? _tlsCaFile;
     private TransportType? _transportType;
     private bool _trace;
+    private bool _serverDisposeReturnsPorts = true;
 
     public NatsServerOptions Build()
     {
@@ -36,6 +37,7 @@ public sealed class NatsServerOptionsBuilder
             ExtraConfigs = _extraConfigs,
             TransportType = _transportType ?? TransportType.Tcp,
             Trace = _trace,
+            ServerDisposeReturnsPorts = _serverDisposeReturnsPorts,
         };
     }
 
@@ -73,6 +75,12 @@ public sealed class NatsServerOptionsBuilder
     public NatsServerOptionsBuilder AddServerConfig(string config)
     {
         _extraConfigs.Add(File.ReadAllText(config));
+        return this;
+    }
+
+    public NatsServerOptionsBuilder KeepPorts()
+    {
+        _serverDisposeReturnsPorts = false;
         return this;
     }
 }
