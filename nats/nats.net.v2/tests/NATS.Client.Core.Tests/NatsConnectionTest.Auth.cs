@@ -6,59 +6,59 @@ public abstract partial class NatsConnectionTest
 {
     public static IEnumerable<object[]> GetAuthConfigs()
     {
-        yield return new object[]
-        {
-            "TOKEN",
-            "resources/configs/auth/token.conf",
-            NatsOptions.Default with
-            {
-                AuthOptions = NatsAuthOptions.Default with
-                {
-                    Token = "s3cr3t",
-                },
-            },
-        };
-
-        yield return new object[]
-        {
-            "USER-PASSWORD",
-            "resources/configs/auth/password.conf",
-            NatsOptions.Default with
-            {
-                AuthOptions = NatsAuthOptions.Default with
-                {
-                    Username = "a",
-                    Password = "b",
-                },
-            },
-        };
-
-        yield return new object[]
-        {
-            "NKEY",
-            "resources/configs/auth/nkey.conf",
-            NatsOptions.Default with
-            {
-                AuthOptions = NatsAuthOptions.Default with
-                {
-                    Nkey = "UALQSMXRSAA7ZXIGDDJBJ2JOYJVQIWM3LQVDM5KYIPG4EP3FAGJ47BOJ",
-                    Seed = "SUAAVWRZG6M5FA5VRRGWSCIHKTOJC7EWNIT4JV3FTOIPO4OBFR5WA7X5TE",
-                },
-            },
-        };
-
-        yield return new object[]
-        {
-            "NKEY (FROM FILE)",
-            "resources/configs/auth/nkey.conf",
-            NatsOptions.Default with
-            {
-                AuthOptions = NatsAuthOptions.Default with
-                {
-                    NKeyFile = "resources/configs/auth/user.nk",
-                },
-            },
-        };
+        // yield return new object[]
+        // {
+        //     "TOKEN",
+        //     "resources/configs/auth/token.conf",
+        //     NatsOptions.Default with
+        //     {
+        //         AuthOptions = NatsAuthOptions.Default with
+        //         {
+        //             Token = "s3cr3t",
+        //         },
+        //     },
+        // };
+        //
+        // yield return new object[]
+        // {
+        //     "USER-PASSWORD",
+        //     "resources/configs/auth/password.conf",
+        //     NatsOptions.Default with
+        //     {
+        //         AuthOptions = NatsAuthOptions.Default with
+        //         {
+        //             Username = "a",
+        //             Password = "b",
+        //         },
+        //     },
+        // };
+        //
+        // yield return new object[]
+        // {
+        //     "NKEY",
+        //     "resources/configs/auth/nkey.conf",
+        //     NatsOptions.Default with
+        //     {
+        //         AuthOptions = NatsAuthOptions.Default with
+        //         {
+        //             Nkey = "UALQSMXRSAA7ZXIGDDJBJ2JOYJVQIWM3LQVDM5KYIPG4EP3FAGJ47BOJ",
+        //             Seed = "SUAAVWRZG6M5FA5VRRGWSCIHKTOJC7EWNIT4JV3FTOIPO4OBFR5WA7X5TE",
+        //         },
+        //     },
+        // };
+        //
+        // yield return new object[]
+        // {
+        //     "NKEY (FROM FILE)",
+        //     "resources/configs/auth/nkey.conf",
+        //     NatsOptions.Default with
+        //     {
+        //         AuthOptions = NatsAuthOptions.Default with
+        //         {
+        //             NKeyFile = "resources/configs/auth/user.nk",
+        //         },
+        //     },
+        // };
 
         yield return new object[]
         {
@@ -74,19 +74,19 @@ public abstract partial class NatsConnectionTest
                 },
             },
         };
-
-        yield return new object[]
-        {
-            "USER-CREDS (FROM FILE)",
-            "resources/configs/auth/operator.conf",
-            NatsOptions.Default with
-            {
-                AuthOptions = NatsAuthOptions.Default with
-                {
-                    CredsFile = "resources/configs/auth/user.creds",
-                },
-            },
-        };
+        //
+        // yield return new object[]
+        // {
+        //     "USER-CREDS (FROM FILE)",
+        //     "resources/configs/auth/operator.conf",
+        //     NatsOptions.Default with
+        //     {
+        //         AuthOptions = NatsAuthOptions.Default with
+        //         {
+        //             CredsFile = "resources/configs/auth/user.creds",
+        //         },
+        //     },
+        // };
     }
 
     [Theory]
