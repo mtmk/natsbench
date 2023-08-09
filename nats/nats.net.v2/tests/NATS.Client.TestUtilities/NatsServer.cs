@@ -323,6 +323,7 @@ public class NatsServer : IAsyncDisposable
         {
             await foreach (var item in enumerable.WithCancellation(cancellationToken))
             {
+                Console.WriteLine($"###[NATS-SERVER]### {item}");
                 l.Add(item);
             }
         }
