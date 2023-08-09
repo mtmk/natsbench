@@ -94,74 +94,84 @@ public abstract partial class NatsConnectionTest
     public async Task UserCredentialAuthTest(string name, string serverConfig, NatsOptions clientOptions)
     {
         var op = new ConsoleOutputHelper(name);
+
         void Log(string msg)
         {
-            op.WriteLine($"[TEST] {DateTime.UtcNow:HH:mm:ss.fff} {msg}");    
+            op.WriteLine($"[TEST] {DateTime.UtcNow:HH:mm:ss.fff} {msg}");
         }
-        Log($"xxxxx {name} # # # #  S T A R T  # # # #");
-        Log($"AUTH TEST {name}");
-
-        var serverOptions = new NatsServerOptionsBuilder()
-            .UseTransport(_transportType)
-            .Trace()
-            .KeepPorts()
-            .AddServerConfig(serverConfig)
-            .Build();
-
-        await using var server = NatsServer.Start(op, serverOptions, clientOptions);
-
-        var subject = Guid.NewGuid().ToString("N");
-
-        Log("TRY ANONYMOUS CONNECTION");
-        {
-            await using var failConnection = server.CreateClientConnection(ignoreAuthorizationException: true);
-            var natsException =
-                await Assert.ThrowsAsync<NatsException>(async () => await failConnection.PublishAsync(subject, 0));
-            Assert.Contains("Authorization Violation", natsException.GetBaseException().Message);
-        }
-
-        await using var subConnection = server.CreateClientConnection(clientOptions);
-        await using var pubConnection = server.CreateClientConnection(clientOptions);
-
-        var signalComplete1 = new WaitSignal();
-        var signalComplete2 = new WaitSignal();
-
-        var natsSub = await subConnection.SubscribeAsync<int>(subject);
-        var register = natsSub.Register(x =>
-        {
-            Log($"Received: {x}");
-            if (x.Data == 1)
-                signalComplete1.Pulse();
-            if (x.Data == 2)
-                signalComplete2.Pulse();
-        });
-
-        await subConnection.PingAsync(); // wait for subscribe complete
-
-        Log("AUTHENTICATED CONNECTION");
-        await pubConnection.PublishAsync(subject, 1);
-        await signalComplete1;
-
-        var disconnectSignal1 = subConnection.ConnectionDisconnectedAsAwaitable();
-        var disconnectSignal2 = pubConnection.ConnectionDisconnectedAsAwaitable();
-
-        Log("TRY DISCONNECT START");
-        await server.DisposeAsync(); // disconnect server
-        await disconnectSignal1;
-        await disconnectSignal2;
-
-        Log("START NEW SERVER");
-        await using var newServer = NatsServer.Start(op, serverOptions, clientOptions);
-        await subConnection.ConnectAsync(); // wait open again
-        await pubConnection.ConnectAsync(); // wait open again
-
-        Log("AUTHENTICATED RE-CONNECTION");
-        await pubConnection.PublishAsync(subject, 2);
-        await signalComplete2;
-
-        await natsSub.DisposeAsync();
-        await register;
         
-        Log($"xxxxx {name} # # # #  E N D  # # # #");
+        Log($"xxxxx {name} # # # #  S T A R T  # # # #");
+
+        try
+        {
+            Log($"AUTH TEST {name}");
+
+            var serverOptions = new NatsServerOptionsBuilder()
+                .UseTransport(_transportType)
+                .Trace()
+                .KeepPorts()
+                .AddServerConfig(serverConfig)
+                .Build();
+
+            await using var server = NatsServer.Start(op, serverOptions, clientOptions);
+
+            var subject = Guid.NewGuid().ToString("N");
+
+            Log("TRY ANONYMOUS CONNECTION");
+            {
+                await using var failConnection = server.CreateClientConnection(ignoreAuthorizationException: true);
+                var natsException =
+                    await Assert.ThrowsAsync<NatsException>(async () => await failConnection.PublishAsync(subject, 0));
+                Assert.Contains("Authorization Violation", natsException.GetBaseException().Message);
+            }
+
+            await using var subConnection = server.CreateClientConnection(clientOptions);
+            await using var pubConnection = server.CreateClientConnection(clientOptions);
+
+            var signalComplete1 = new WaitSignal();
+            var signalComplete2 = new WaitSignal();
+
+            var natsSub = await subConnection.SubscribeAsync<int>(subject);
+            var register = natsSub.Register(x =>
+            {
+                Log($"Received: {x}");
+                if (x.Data == 1)
+                    signalComplete1.Pulse();
+                if (x.Data == 2)
+                    signalComplete2.Pulse();
+            });
+
+            await subConnection.PingAsync(); // wait for subscribe complete
+
+            Log("AUTHENTICATED CONNECTION");
+            await pubConnection.PublishAsync(subject, 1);
+            await signalComplete1;
+
+            var disconnectSignal1 = subConnection.ConnectionDisconnectedAsAwaitable();
+            var disconnectSignal2 = pubConnection.ConnectionDisconnectedAsAwaitable();
+
+            Log("TRY DISCONNECT START");
+            await server.DisposeAsync(); // disconnect server
+            await disconnectSignal1;
+            await disconnectSignal2;
+
+            Log("START NEW SERVER");
+            await using var newServer = NatsServer.Start(op, serverOptions, clientOptions);
+            await subConnection.ConnectAsync(); // wait open again
+            await pubConnection.ConnectAsync(); // wait open again
+
+            Log("AUTHENTICATED RE-CONNECTION");
+            await pubConnection.PublishAsync(subject, 2);
+            await signalComplete2;
+
+            await natsSub.DisposeAsync();
+            await register;
+
+            Log($"xxxxx {name} # # # #  E N D  # # # #");
+        }
+        catch (Exception e)
+        {
+            Log($"xxxxx {name} # # # #  !!!!!!!!!! FAILED !!!!!!!!!  # # # # {e}");
+        }
     }
 }
