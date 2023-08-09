@@ -394,8 +394,11 @@ public partial class NatsConnection : IAsyncDisposable, INatsConnection
             // receive COMMAND response (PONG or ERROR)
             await waitForPongOrErrorSignal.Task.ConfigureAwait(false);
 
-            // Reestablish subscriptions and consumers
-            await SubscriptionManager.ReconnectAsync(_disposedCancellationTokenSource.Token).ConfigureAwait(false);
+            if (reconnect)
+            {
+                // Reestablish subscriptions and consumers
+                await SubscriptionManager.ReconnectAsync(_disposedCancellationTokenSource.Token).ConfigureAwait(false);
+            }
         }
         catch (Exception)
         {
