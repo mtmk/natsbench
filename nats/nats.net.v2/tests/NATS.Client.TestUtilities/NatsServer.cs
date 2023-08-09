@@ -258,7 +258,9 @@ public class NatsServer : IAsyncDisposable
         {
             try
             {
-                var nats = new NatsConnection(ClientOptions(options ?? NatsOptions.Default));
+                var clientOptions = ClientOptions(options ?? NatsOptions.Default);
+                Console.WriteLine($"##########   CLIENT-CONNECT {clientOptions.Url}");
+                var nats = new NatsConnection(clientOptions);
 
                 try
                 {
