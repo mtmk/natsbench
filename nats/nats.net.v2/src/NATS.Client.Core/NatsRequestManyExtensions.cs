@@ -1,6 +1,5 @@
 using System.Buffers;
 using System.Runtime.CompilerServices;
-using NATS.Client.Core.Commands;
 
 namespace NATS.Client.Core;
 
@@ -22,7 +21,7 @@ public static class NatsRequestManyExtensions
     /// </remarks>
     public static async IAsyncEnumerable<NatsMsg> RequestManyAsync(
         this NatsConnection nats,
-        NatsSubject subject,
+        string subject,
         ReadOnlySequence<byte> payload = default,
         NatsPubOpts? requestOpts = default,
         NatsSubOpts? replyOpts = default,
@@ -91,7 +90,7 @@ public static class NatsRequestManyExtensions
     /// </remarks>
     public static async IAsyncEnumerable<NatsMsg<TReply?>> RequestManyAsync<TRequest, TReply>(
         this NatsConnection nats,
-        NatsSubject subject,
+        string subject,
         TRequest? data,
         NatsPubOpts? requestOpts = default,
         NatsSubOpts? replyOpts = default,

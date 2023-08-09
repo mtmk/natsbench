@@ -1,10 +1,8 @@
-using NATS.Client.Core.Commands;
-
 namespace NATS.Client.Core;
 
 public readonly record struct NatsPubOpts
 {
-    public NatsSubject? ReplyTo { get; init; }
+    public string? ReplyTo { get; init; }
 
     public NatsHeaders? Headers { get; init; }
 

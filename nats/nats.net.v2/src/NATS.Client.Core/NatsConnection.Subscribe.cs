@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using NATS.Client.Core.Commands;
 using NATS.Client.Core.Internal;
 
 namespace NATS.Client.Core;
@@ -7,15 +6,19 @@ namespace NATS.Client.Core;
 public partial class NatsConnection
 {
     /// <inheritdoc />
-    public ValueTask<NatsSub> SubscribeAsync(NatsSubject subject, in NatsSubOpts? opts = default, CancellationToken cancellationToken = default)
+    public async ValueTask<INatsSub> SubscribeAsync(string subject, NatsSubOpts? opts = default, CancellationToken cancellationToken = default)
     {
-        return SubAsync<NatsSub>(subject, opts, NatsSubBuilder.Default, cancellationToken);
+        var sub = new NatsSub(this, SubscriptionManager, subject, opts);
+        await SubAsync(subject, opts, sub, cancellationToken).ConfigureAwait(false);
+        return sub;
     }
 
     /// <inheritdoc />
-    public ValueTask<NatsSub<T>> SubscribeAsync<T>(NatsSubject subject, in NatsSubOpts? opts = default, CancellationToken cancellationToken = default)
+    public async ValueTask<INatsSub<T>> SubscribeAsync<T>(string subject, NatsSubOpts? opts = default, CancellationToken cancellationToken = default)
     {
         var serializer = opts?.Serializer ?? Options.Serializer;
-        return SubAsync<NatsSub<T>>(subject, opts, NatsSubModelBuilder<T>.For(serializer), cancellationToken);
+        var sub = new NatsSub<T>(this, SubscriptionManager.GetManagerFor(subject), subject, opts, serializer);
+        await SubAsync(subject, opts, sub, cancellationToken).ConfigureAwait(false);
+        return sub;
     }
 }

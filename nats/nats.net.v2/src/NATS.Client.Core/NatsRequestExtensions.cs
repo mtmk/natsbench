@@ -1,5 +1,4 @@
 using System.Buffers;
-using NATS.Client.Core.Commands;
 
 namespace NATS.Client.Core;
 
@@ -31,7 +30,7 @@ public static class NatsRequestExtensions
     /// </remarks>
     public static async ValueTask<NatsMsg<TReply?>?> RequestAsync<TRequest, TReply>(
         this NatsConnection nats,
-        NatsSubject subject,
+        string subject,
         TRequest? data,
         NatsPubOpts? requestOpts = default,
         NatsSubOpts? replyOpts = default,
@@ -48,11 +47,6 @@ public static class NatsRequestExtensions
             {
                 return msg;
             }
-        }
-
-        if (sub is { EndReason: NatsSubEndReason.Exception, Exception: not null })
-        {
-            throw sub.Exception;
         }
 
         return null;
@@ -108,7 +102,7 @@ public static class NatsRequestExtensions
     /// </remarks>
     public static async ValueTask<NatsMsg?> RequestAsync(
         this NatsConnection nats,
-        NatsSubject subject,
+        string subject,
         ReadOnlySequence<byte> payload = default,
         NatsPubOpts? requestOpts = default,
         NatsSubOpts? replyOpts = default,
@@ -124,11 +118,6 @@ public static class NatsRequestExtensions
             {
                 return msg;
             }
-        }
-
-        if (sub is { EndReason: NatsSubEndReason.Exception, Exception: not null })
-        {
-            throw sub.Exception;
         }
 
         return null;

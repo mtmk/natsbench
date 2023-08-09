@@ -43,6 +43,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workflows", "workflows", "{
 		.github\workflows\nats2.yml = .github\workflows\nats2.yml
 		.github\workflows\nats-win-dl.yml = .github\workflows\nats-win-dl.yml
 		.github\workflows\rel.yml = .github\workflows\rel.yml
+		.github\workflows\nats3.yml = .github\workflows\nats3.yml
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NATS.Client.Core", "nats\nats.net.v2\src\NATS.Client.Core\NATS.Client.Core.csproj", "{8A9C3E5A-E722-4053-AB7C-E49D9EDE9A6E}"
@@ -88,6 +89,10 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "nperf0", "nperf0\nperf0.csproj", "{2115F246-F8D8-4C87-851D-643C8184B177}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "nperf2", "nperf2\nperf2.csproj", "{5FC2426B-4040-4839-8485-FD3CED768B41}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NATS.Client.TestUtilities", "nats\nats.net.v2\tests\NATS.Client.TestUtilities\NATS.Client.TestUtilities.csproj", "{5DA3C110-18C1-4D87-85FA-3A02ABEC0C58}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NATS.Client.Core.Tests", "nats\nats.net.v2\tests\NATS.Client.Core.Tests\NATS.Client.Core.Tests.csproj", "{F4C2C926-1392-46AF-8397-5E4B9EAB9FBC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -198,11 +203,21 @@ Global
 		{5FC2426B-4040-4839-8485-FD3CED768B41}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5FC2426B-4040-4839-8485-FD3CED768B41}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5FC2426B-4040-4839-8485-FD3CED768B41}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5DA3C110-18C1-4D87-85FA-3A02ABEC0C58}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5DA3C110-18C1-4D87-85FA-3A02ABEC0C58}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5DA3C110-18C1-4D87-85FA-3A02ABEC0C58}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5DA3C110-18C1-4D87-85FA-3A02ABEC0C58}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F4C2C926-1392-46AF-8397-5E4B9EAB9FBC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F4C2C926-1392-46AF-8397-5E4B9EAB9FBC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F4C2C926-1392-46AF-8397-5E4B9EAB9FBC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F4C2C926-1392-46AF-8397-5E4B9EAB9FBC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{60BEF34F-572D-477F-943F-16B869FDE06B} = {B3CCFF33-B33D-45E4-AEE1-778D5A2347D1}
 		{8A9C3E5A-E722-4053-AB7C-E49D9EDE9A6E} = {8670B72D-186A-4BB9-B545-2BB84BD9445E}
 		{A00D662E-2EBD-4B15-8DDA-52401B86A150} = {B0CFF32E-899A-44FD-A418-6D50E5B7CF8F}
 		{9A5C260D-E68A-4DAE-86F2-65D359BD6FA9} = {A8D55A8D-8B37-461C-8FE1-015F734A36AE}
+		{5DA3C110-18C1-4D87-85FA-3A02ABEC0C58} = {8670B72D-186A-4BB9-B545-2BB84BD9445E}
+		{F4C2C926-1392-46AF-8397-5E4B9EAB9FBC} = {8670B72D-186A-4BB9-B545-2BB84BD9445E}
 	EndGlobalSection
 EndGlobal

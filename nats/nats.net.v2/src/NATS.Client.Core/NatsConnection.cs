@@ -15,7 +15,7 @@ public enum NatsConnectionState
     Reconnecting,
 }
 
-public partial class NatsConnection : IAsyncDisposable//, INatsConnection
+public partial class NatsConnection : IAsyncDisposable, INatsConnection
 {
 #pragma warning disable SA1401
     /// <summary>
@@ -28,7 +28,6 @@ public partial class NatsConnection : IAsyncDisposable//, INatsConnection
     private readonly object _gate = new object();
     private readonly WriterState _writerState;
     private readonly ChannelWriter<ICommand> _commandWriter;
-    private readonly SubscriptionManager _subscriptionManager;
     private readonly ILogger<NatsConnection> _logger;
     private readonly ObjectPool _pool;
     private readonly CancellationTimerPool _cancellationTimerPool;
@@ -69,7 +68,7 @@ public partial class NatsConnection : IAsyncDisposable//, INatsConnection
         _writerState = new WriterState(options);
         _commandWriter = _writerState.CommandBuffer.Writer;
         InboxPrefix = $"{options.InboxPrefix}.{Guid.NewGuid():n}.";
-        _subscriptionManager = new SubscriptionManager(this, InboxPrefix);
+        SubscriptionManager = new SubscriptionManager(this, InboxPrefix);
         _logger = options.LoggerFactory.CreateLogger<NatsConnection>();
         _clientOptions = new ClientOptions(Options);
         HeaderParser = new HeaderParser(options.HeaderEncoding);
@@ -89,6 +88,8 @@ public partial class NatsConnection : IAsyncDisposable//, INatsConnection
     public ServerInfo? ServerInfo { get; internal set; } // server info is set when received INFO
 
     public HeaderParser HeaderParser { get; }
+
+    internal SubscriptionManager SubscriptionManager { get; }
 
     internal string InboxPrefix { get; }
 
@@ -143,7 +144,7 @@ public partial class NatsConnection : IAsyncDisposable//, INatsConnection
                 item.SetCanceled();
             }
 
-            await _subscriptionManager.DisposeAsync().ConfigureAwait(false);
+            await SubscriptionManager.DisposeAsync().ConfigureAwait(false);
             _waitForOpenConnection.TrySetCanceled();
             _disposedCancellationTokenSource.Cancel();
         }
@@ -165,9 +166,9 @@ public partial class NatsConnection : IAsyncDisposable//, INatsConnection
         pingCommand.SetCanceled();
     }
 
-    internal ValueTask PublishToClientHandlersAsync(NatsSubject subject, NatsSubject? replyTo, int sid, in ReadOnlySequence<byte>? headersBuffer, in ReadOnlySequence<byte> payloadBuffer)
+    internal ValueTask PublishToClientHandlersAsync(string subject, string? replyTo, int sid, in ReadOnlySequence<byte>? headersBuffer, in ReadOnlySequence<byte> payloadBuffer)
     {
-        return _subscriptionManager.PublishToClientHandlersAsync(subject, replyTo, sid, headersBuffer, payloadBuffer);
+        return SubscriptionManager.PublishToClientHandlersAsync(subject, replyTo, sid, headersBuffer, payloadBuffer);
     }
 
     internal void ResetPongCount()
@@ -187,7 +188,7 @@ public partial class NatsConnection : IAsyncDisposable//, INatsConnection
     }
 
     // called only internally
-    internal ValueTask SubscribeCoreAsync(int sid, NatsSubject subject, string? queueGroup, int? maxMsgs, CancellationToken cancellationToken)
+    internal ValueTask SubscribeCoreAsync(int sid, string subject, string? queueGroup, int? maxMsgs, CancellationToken cancellationToken)
     {
         var command = AsyncSubscribeCommand.Create(_pool, GetCancellationTimer(cancellationToken), sid, subject, queueGroup, maxMsgs);
         return EnqueueAndAwaitCommandAsync(command);
@@ -383,14 +384,6 @@ public partial class NatsConnection : IAsyncDisposable//, INatsConnection
             _writerState.PriorityCommands.Add(connectCommand);
             _writerState.PriorityCommands.Add(PingCommand.Create(_pool, GetCancellationTimer(CancellationToken.None)));
 
-            if (reconnect)
-            {
-                // Add SUBSCRIBE command to priority lane
-                var subscribeCommand =
-                    AsyncSubscribeBatchCommand.Create(_pool, GetCancellationTimer(CancellationToken.None), _subscriptionManager.GetExistingSubscriptions().ToArray());
-                _writerState.PriorityCommands.Add(subscribeCommand);
-            }
-
             // create the socket writer
             _socketWriter = new NatsPipeliningWriteProtocolProcessor(_socket!, _writerState, _pool, Counter);
 
@@ -399,6 +392,9 @@ public partial class NatsConnection : IAsyncDisposable//, INatsConnection
 
             // receive COMMAND response (PONG or ERROR)
             await waitForPongOrErrorSignal.Task.ConfigureAwait(false);
+
+            // Reestablish subscriptions and consumers
+            await SubscriptionManager.ReconnectAsync(_disposedCancellationTokenSource.Token).ConfigureAwait(false);
         }
         catch (Exception)
         {

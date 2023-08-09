@@ -1,23 +1,22 @@
 using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
-using NATS.Client.Core.Commands;
 
 namespace NATS.Client.Core;
 
 public readonly record struct NatsMsg(
-    NatsSubject Subject,
-    NatsSubject? ReplyTo,
+    string Subject,
+    string? ReplyTo,
     int Size,
     NatsHeaders? Headers,
     ReadOnlyMemory<byte> Data,
-    NatsConnection? Connection)
+    INatsConnection? Connection)
 {
     internal static NatsMsg Build(
-        NatsSubject subject,
-        NatsSubject? replyTo,
+        string subject,
+        string? replyTo,
         in ReadOnlySequence<byte>? headersBuffer,
         in ReadOnlySequence<byte> payloadBuffer,
-        NatsConnection? connection,
+        INatsConnection? connection,
         HeaderParser headerParser)
     {
         NatsHeaders? headers = null;
@@ -44,13 +43,13 @@ public readonly record struct NatsMsg(
     public ValueTask ReplyAsync(ReadOnlySequence<byte> payload = default, in NatsPubOpts? opts = default, CancellationToken cancellationToken = default)
     {
         CheckReplyPreconditions();
-        return Connection.PublishAsync(ReplyTo!.Value, payload, opts, cancellationToken);
+        return Connection.PublishAsync(ReplyTo!, payload, opts, cancellationToken);
     }
 
     public ValueTask ReplyAsync(NatsMsg msg, in NatsPubOpts? opts = default, CancellationToken cancellationToken = default)
     {
         CheckReplyPreconditions();
-        return Connection.PublishAsync(msg with { Subject = ReplyTo!.Value }, opts, cancellationToken);
+        return Connection.PublishAsync(msg with { Subject = ReplyTo! }, opts, cancellationToken);
     }
 
     [MemberNotNull(nameof(Connection))]
@@ -61,7 +60,7 @@ public readonly record struct NatsMsg(
             throw new NatsException("unable to send reply; message did not originate from a subscription");
         }
 
-        if (ReplyTo!.Value.Length == 0)
+        if (string.IsNullOrWhiteSpace(ReplyTo))
         {
             throw new NatsException("unable to send reply; ReplyTo is empty");
         }
@@ -69,19 +68,19 @@ public readonly record struct NatsMsg(
 }
 
 public readonly record struct NatsMsg<T>(
-    NatsSubject Subject,
-    NatsSubject? ReplyTo,
+    string Subject,
+    string? ReplyTo,
     int Size,
     NatsHeaders? Headers,
     T? Data,
-    NatsConnection? Connection)
+    INatsConnection? Connection)
 {
     internal static NatsMsg<T> Build(
-        NatsSubject subject,
-        NatsSubject? replyTo,
+        string subject,
+        string? replyTo,
         in ReadOnlySequence<byte>? headersBuffer,
         in ReadOnlySequence<byte> payloadBuffer,
-        NatsConnection? connection,
+        INatsConnection? connection,
         HeaderParser headerParser,
         INatsSerializer serializer)
     {
@@ -116,25 +115,25 @@ public readonly record struct NatsMsg<T>(
     public ValueTask ReplyAsync<TReply>(TReply data, in NatsPubOpts? opts = default, CancellationToken cancellationToken = default)
     {
         CheckReplyPreconditions();
-        return Connection.PublishAsync(ReplyTo!.Value, data, opts, cancellationToken);
+        return Connection.PublishAsync(ReplyTo!, data, opts, cancellationToken);
     }
 
     public ValueTask ReplyAsync<TReply>(NatsMsg<TReply> msg)
     {
         CheckReplyPreconditions();
-        return Connection.PublishAsync(msg with { Subject = ReplyTo!.Value });
+        return Connection.PublishAsync(msg with { Subject = ReplyTo! });
     }
 
     public ValueTask ReplyAsync(ReadOnlySequence<byte> payload = default, in NatsPubOpts? opts = default, CancellationToken cancellationToken = default)
     {
         CheckReplyPreconditions();
-        return Connection.PublishAsync(ReplyTo!.Value, payload: payload, opts, cancellationToken);
+        return Connection.PublishAsync(ReplyTo!, payload: payload, opts, cancellationToken);
     }
 
     public ValueTask ReplyAsync(NatsMsg msg)
     {
         CheckReplyPreconditions();
-        return Connection.PublishAsync(msg with { Subject = ReplyTo!.Value });
+        return Connection.PublishAsync(msg with { Subject = ReplyTo! });
     }
 
     [MemberNotNull(nameof(Connection))]
@@ -145,7 +144,7 @@ public readonly record struct NatsMsg<T>(
             throw new NatsException("unable to send reply; message did not originate from a subscription");
         }
 
-        if (ReplyTo!.Value.Length == 0)
+        if (string.IsNullOrWhiteSpace(ReplyTo))
         {
             throw new NatsException("unable to send reply; ReplyTo is empty");
         }

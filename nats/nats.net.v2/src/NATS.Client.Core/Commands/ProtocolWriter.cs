@@ -51,7 +51,7 @@ internal sealed class ProtocolWriter
 
     // https://docs.nats.io/reference/reference-protocols/nats-protocol#pub
     // PUB <subject> [reply-to] <#bytes>\r\n[payload]\r\n
-    public void WritePublish(NatsSubject subject, NatsSubject? replyTo, NatsHeaders? headers, ReadOnlySequence<byte> payload)
+    public void WritePublish(string subject, string? replyTo, NatsHeaders? headers, ReadOnlySequence<byte> payload)
     {
         // We use a separate buffer to write the headers so that we can calculate the
         // size before we write to the output buffer '_writer'.
@@ -64,13 +64,11 @@ internal sealed class ProtocolWriter
         // Start writing the message to buffer:
         // PUP / HPUB
         _writer.WriteSpan(headers == null ? CommandConstants.PubWithPadding : CommandConstants.HPubWithPadding);
-        _writer.WriteSpan(subject.AsSpan());
-        _writer.WriteSpace();
+        _writer.WriteASCIIAndSpace(subject);
 
         if (replyTo != null)
         {
-            _writer.WriteSpan(replyTo.Value.AsSpan());
-            _writer.WriteSpace();
+            _writer.WriteASCIIAndSpace(replyTo);
         }
 
         if (headers == null)
@@ -103,7 +101,7 @@ internal sealed class ProtocolWriter
         _writer.WriteNewLine();
     }
 
-    public void WritePublish<T>(NatsSubject subject, NatsSubject? replyTo, NatsHeaders? headers, T? value, INatsSerializer serializer)
+    public void WritePublish<T>(string subject, string? replyTo, NatsHeaders? headers, T? value, INatsSerializer serializer)
     {
         _bufferPayload.Reset();
 
@@ -121,7 +119,7 @@ internal sealed class ProtocolWriter
 
     // https://docs.nats.io/reference/reference-protocols/nats-protocol#sub
     // SUB <subject> [queue group] <sid>
-    public void WriteSubscribe(int sid, NatsSubject subject, string? queueGroup, int? maxMsgs)
+    public void WriteSubscribe(int sid, string subject, string? queueGroup, int? maxMsgs)
     {
         var offset = 0;
 
@@ -135,7 +133,7 @@ internal sealed class ProtocolWriter
         CommandConstants.SubWithPadding.CopyTo(writableSpan);
         offset += CommandConstants.SubWithPadding.Length;
 
-        subject.AsSpan().CopyTo(writableSpan.Slice(offset));
+        subject.WriteASCIIBytes(writableSpan.Slice(offset));
         offset += subject.Length;
         writableSpan.Slice(offset)[0] = (byte)' ';
         offset += 1;

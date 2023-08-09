@@ -8,23 +8,25 @@ namespace NATS.Client.JetStream;
 public partial class NatsJSContext
 {
     public NatsJSContext(NatsConnection nats)
-        : this(nats, new NatsJSOptions())
+        : this(nats, new NatsJSOpts())
     {
     }
 
-    public NatsJSContext(NatsConnection nats, NatsJSOptions options)
+    public NatsJSContext(NatsConnection nats, NatsJSOpts opts)
     {
         Nats = nats;
-        Options = options;
+        if (opts.InboxPrefix == string.Empty)
+            opts = opts with { InboxPrefix = nats.Options.InboxPrefix };
+        Opts = opts;
     }
 
     internal NatsConnection Nats { get; }
 
-    internal NatsJSOptions Options { get; }
+    internal NatsJSOpts Opts { get; }
 
     public ValueTask<AccountInfoResponse> GetAccountInfoAsync(CancellationToken cancellationToken = default) =>
         JSRequestResponseAsync<object, AccountInfoResponse>(
-            subject: $"{Options.Prefix}.INFO",
+            subject: $"{Opts.ApiPrefix}.INFO",
             request: null,
             cancellationToken);
 
@@ -53,11 +55,6 @@ public partial class NatsJSContext
 
                 return msg.Data;
             }
-        }
-
-        if (sub is { EndReason: NatsSubEndReason.Exception, Exception: not null })
-        {
-            throw sub.Exception;
         }
 
         throw new NatsJSException("No response received");
@@ -108,14 +105,17 @@ public partial class NatsJSContext
             }
         }
 
-        if (sub is { EndReason: NatsSubEndReason.Exception, Exception: not null })
+        if (sub is NatsSubBase { EndReason: NatsSubEndReason.Exception, Exception: not null } sb)
         {
-            if (sub.Exception is NatsSubException { InnerException: JSErrorException jsError })
+            if (sb.Exception is NatsSubException { Exception.SourceException: JSApiErrorException jsError })
             {
+                // Clear exception here so that subscription disposal won't throw it.
+                sb.ClearException();
+
                 return new NatsJSResponse<TResponse>(default, jsError.Error);
             }
 
-            throw sub.Exception;
+            throw sb.Exception;
         }
 
         throw new NatsJSException("No response received");

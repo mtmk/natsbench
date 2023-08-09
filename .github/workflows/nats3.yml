@@ -1,0 +1,53 @@
+name: nats3
+on: workflow_dispatch
+jobs:
+
+  ubuntu_build:
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - branch: dev
+          #- branch: main 
+    runs-on: ubuntu-latest
+    steps:
+      - name: tools
+        run: |
+          mkdir tools
+          cd tools
+          curl -sf https://binaries.nats.dev/nats-io/nats-server/v2@${{ matrix.config.branch }} | PREFIX=. sh
+          echo "$(pwd)" | tee -a "$GITHUB_PATH"
+      - name: nats-server version
+        run: nats-server -v
+      - name: build
+        run: dotnet build --p:WarningLevel=0
+      - name: test
+        run: dotnet test --no-build --logger:"console;verbosity=normal" nats/nats.net.v2/tests/NATS.Client.Core.Tests
+
+
+#  windows_build:
+#    strategy:
+#      fail-fast: false
+#      matrix:
+#        config:
+#          - branch: dev
+#          - branch: main
+#    runs-on: windows-latest
+#    steps:
+#      - name: tools
+#        run: |
+#          mkdir tools
+#          cd tools
+#          curl -Ls "https://binaries.nats.dev/binary/github.com/nats-io/nats-server/v2?os=windows&arch=amd64&version=${{ matrix.config.branch }}" -o nats-server.exe
+#          $current_path = (Get-Item .).FullName
+#          echo "$current_path" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+#      - name: tools
+#        shell: bash
+#        run: |
+#          mkdir tools
+#          cd tools
+#          curl -sf https://binaries.nats.dev/nats-io/nats-server/v2@${{ matrix.config.branch }} | PREFIX=. sh
+#          mv nats-server nats-server.exe
+#          cygpath -w "$(pwd)" | tee -a "$GITHUB_PATH"
+#      - name: nats-server version
+#        run: nats-server -v
