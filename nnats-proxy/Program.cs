@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -49,13 +50,56 @@ public class Program
 
         Console.WriteLine("Started nats-server");
 
-        Task.Run(() => RunServer(IPAddress.Loopback, port1, port2));
+        var server = new Server();
+
+        Task.Run(() => RunServer(server, IPAddress.Loopback, port1, port2));
         if (Socket.OSSupportsIPv6)
         {
-            Task.Run(() => RunServer(IPAddress.IPv6Loopback, port1, port2));
+            Task.Run(() => RunServer(server, IPAddress.IPv6Loopback, port1, port2));
         }
 
-        while (true) Console.ReadLine();
+        while (true)
+        {
+            Console.Write("nnats-proxy> ");
+            var cmd = Console.ReadLine();
+            if (Regex.IsMatch(cmd, @"^\s*$"))
+            {
+            }
+            else if (Regex.IsMatch(cmd, @"^\s*(h|help)\s*$"))
+            {
+                Console.WriteLine("""
+                                  
+                                  NATS Wire Protocol Analysing TCP Proxy
+                                  
+                                    h, help            This message
+                                    drop <client-id>   Close TCP connection of client
+                                    q, quit            Quit program and stop nats-server
+                                  
+                                  """);
+            }
+            else if (Regex.IsMatch(cmd, @"^\s*(q|quit)\s*$"))
+            {
+                Console.WriteLine("Bye");
+                break;
+            }
+            else if (cmd.StartsWith("drop"))
+            {
+                var match = Regex.Match(cmd, @"^\s*drop\s+(\d+)\s*$");
+                if (match.Success)
+                {
+                    var id = int.Parse(match.Groups[1].Value);
+                    server.Drop(id);
+                }
+                else
+                {
+                    Console.WriteLine($"Error: Can't parse drop command: {cmd}");
+                }
+            }
+            else
+            {
+                Console.WriteLine($"Error: Can't parse command: {cmd}");
+            }
+        }
     }
 
     static void SetupSocket(Socket socket)
@@ -73,9 +117,40 @@ public class Program
         socket.NoDelay = true;
     }
 
-    static int client = 0;
+    private static int _client = 0;
 
-    static void RunServer(IPAddress address, int proxyPort, int serverPort)
+    class Server
+    {
+        private readonly ConcurrentDictionary<int, TcpClient> _clients = new();
+
+        public void NewClient(int id, TcpClient tcpClient)
+        {
+            _clients[id] = tcpClient;
+        }
+
+        public void Drop(int id)
+        {
+            Console.WriteLine($"Dropping client [{id}]...");
+            if (_clients.TryGetValue(id, out var client))
+            {
+                try
+                {
+                    client.Close();
+                    Console.WriteLine($"Client [{id}] connection closed.");
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine($"Error: closing client [{id}]: {e.GetBaseException().Message}");
+                }
+            }
+            else
+            {
+                Console.WriteLine($"Error: Can't find client [{id}]");
+            }
+        }
+    }
+    
+    static void RunServer(Server server, IPAddress address, int proxyPort, int serverPort)
     {
         var tcpListener = new TcpListener(address, proxyPort);
 
@@ -84,17 +159,18 @@ public class Program
         tcpListener.Start();
 
         Console.WriteLine($"Proxy is listening on {tcpListener.LocalEndpoint}");
-
-
+        
         while (true)
         {
             var clientTcpConnection = tcpListener.AcceptTcpClient();
+
+            var n = Interlocked.Increment(ref _client);
+            server.NewClient(n, clientTcpConnection);
+            
             SetupSocket(clientTcpConnection.Client);
 
             var serverTcpConnection = new TcpClient("127.0.0.1", serverPort);
             SetupSocket(serverTcpConnection.Client);
-
-            var n = Interlocked.Increment(ref client);
 
             Console.WriteLine($"[{n}] Connected to {clientTcpConnection.Client.LocalEndPoint} -> {serverTcpConnection.Client.RemoteEndPoint}");
 

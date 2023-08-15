@@ -94,6 +94,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NATS.Client.TestUtilities",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NATS.Client.Core.Tests", "nats\nats.net.v2\tests\NATS.Client.Core.Tests\NATS.Client.Core.Tests.csproj", "{F4C2C926-1392-46AF-8397-5E4B9EAB9FBC}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "oldapp1", "oldapp1\oldapp1.csproj", "{4CB4F529-FA2D-4784-B7DD-C2ABD70F17CB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -211,6 +213,10 @@ Global
 		{F4C2C926-1392-46AF-8397-5E4B9EAB9FBC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F4C2C926-1392-46AF-8397-5E4B9EAB9FBC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F4C2C926-1392-46AF-8397-5E4B9EAB9FBC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4CB4F529-FA2D-4784-B7DD-C2ABD70F17CB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4CB4F529-FA2D-4784-B7DD-C2ABD70F17CB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4CB4F529-FA2D-4784-B7DD-C2ABD70F17CB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4CB4F529-FA2D-4784-B7DD-C2ABD70F17CB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{60BEF34F-572D-477F-943F-16B869FDE06B} = {B3CCFF33-B33D-45E4-AEE1-778D5A2347D1}
