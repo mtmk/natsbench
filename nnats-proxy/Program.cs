@@ -69,13 +69,16 @@ public class Program
             }
             else if (Regex.IsMatch(cmd, @"^\s*(\?|h|help)\s*$"))
             {
-                Console.WriteLine("""
+                Console.WriteLine($$"""
                                   
                                   NATS Wire Protocol Analysing TCP Proxy
                                   
                                     h, ?, help         This message
                                     drop <client-id>   Close TCP connection of client
+                                    hb                 Toggle suppressing JetStream Heartbeat messages
                                     q, quit            Quit program and stop nats-server
+                                  
+                                  Suppress HB:{{server.SuppressHeartbeats}}
                                   
                                   """);
             }
@@ -83,6 +86,19 @@ public class Program
             {
                 Console.WriteLine("Bye");
                 break;
+            }
+            else if (Regex.IsMatch(cmd, @"^\s*(hb)\s*$"))
+            {
+                if (server.SuppressHeartbeats)
+                {
+                    Console.WriteLine("Unsuppressed heartbeats");
+                    server.SuppressHeartbeats = false;
+                }
+                else
+                {
+                    Console.WriteLine("Suppress heartbeats");
+                    server.SuppressHeartbeats = true;
+                }
             }
             else if (cmd.StartsWith("drop"))
             {
@@ -131,6 +147,13 @@ public class Program
             _js = js;
         }
 
+        private int _shb;
+        public bool SuppressHeartbeats
+        {
+            get => Volatile.Read(ref _shb) == 1;
+            set => Interlocked.Exchange(ref _shb, value ? 1 : 0);
+        }
+
         public void NewClient(int id, TcpClient tcpClient)
         {
             _clients[id] = tcpClient;
@@ -157,7 +180,7 @@ public class Program
             }
         }
 
-        public void Print(string dir, string line, string buffer)
+        public void Print(string dir, string line, string ascii)
         {
             try
             {
@@ -167,8 +190,7 @@ public class Program
 
                     Match m1;
                     Match m2;
-                    if ((m1 = Regex.Match(buffer,
-                            @"100 Idle Heartbeat\\r\\nNats-Last-Consumer: (\d+)\\r\\nNats-Last-Stream: (\d+)")).Success)
+                    if ((m1 = Regex.Match(ascii, @"100 Idle Heartbeat\\r\\nNats-Last-Consumer: (\d+)\\r\\nNats-Last-Stream: (\d+)")).Success)
                     {
                         // NATS/1.0 100 Idle Heartbeat\r\nNats-Last-Consumer: 107\r\nNats-Last-Stream: 107\r\n\r\n
                         var lastConsumer = m1.Groups[1].Value;
@@ -176,9 +198,7 @@ public class Program
                         js = $"[Idle Heartbeat] consumer:{lastConsumer} stream:{lastStream}";
                     }
                     //else if ((m1 = Regex.Match(buffer, @"")).Success)
-                    else if ((m1 = Regex.Match(buffer,
-                                 @"408 Request Timeout\\r\\nNats-Pending-Messages: (\d+)\\r\\nNats-Pending-Bytes: (\d+)"))
-                             .Success)
+                    else if ((m1 = Regex.Match(ascii, @"408 Request Timeout\\r\\nNats-Pending-Messages: (\d+)\\r\\nNats-Pending-Bytes: (\d+)")).Success)
                     {
                         // NATS/1.0 408 Request Timeout\r\nNats-Pending-Messages: 10\r\nNats-Pending-Bytes: 0\r\n\r\n
                         var pendingMsgs = m1.Groups[1].Value;
@@ -191,13 +211,13 @@ public class Program
                         // {"batch":10,"max_bytes":0,"idle_heartbeat":15000000000,"expires":30000000000}
                         var stream = m1.Groups[1].Value;
                         var consumer = m1.Groups[2].Value;
-                        var json = JsonNode.Parse(buffer);
+                        var json = JsonNode.Parse(ascii);
                         var batch = json["batch"]?.GetValue<int>();
                         js = $"[Pull] {stream}/{consumer} batch:{batch}";
                     }
                     else if (
                         (m1 = Regex.Match(line, @"^PUB \$JS\.ACK\.(\w+)\.(\w+)\.(\d+)\.(\d+)\.(\d+)\.(\d+)\.(\d+)")).Success
-                        && (m2 = Regex.Match(buffer, @"^\+ACK$")).Success)
+                        && (m2 = Regex.Match(ascii, @"^\+ACK$")).Success)
                     {
                         // PUB $JS.ACK.s1.c2.1.119.119.1692099975248777900.0 4
                         //+ACK
@@ -224,7 +244,7 @@ public class Program
                         var v4 = ulong.Parse(m1.Groups[8].Value);
                         var v5 = ulong.Parse(m1.Groups[9].Value);
                         js = $"[MSG] {subject} {stream}/{consumer} v1:{v1} v2:{v2} v3:{v3} v4:{v4} v5:{v5}" +
-                             $"\n    {new string(' ', dir.Length)} {buffer}";
+                             $"\n    {new string(' ', dir.Length)} {ascii}";
                     }
                     
                     if (js != null)
@@ -234,15 +254,30 @@ public class Program
                     }
                 }
 
-                Console.WriteLine($"{dir} {line}\n{new string(' ', dir.Length)} {buffer}");
+                Console.WriteLine($"{dir} {line}\n{new string(' ', dir.Length)} {ascii}");
             }
             catch (Exception e)
             {
                 Console.WriteLine($"Print error :{e.Message}");
                 Console.WriteLine($"  dir:{dir}");
                 Console.WriteLine($"  line:{line}");
-                Console.WriteLine($"  buffer:{buffer}");
+                Console.WriteLine($"  buffer:{ascii}");
                 Console.WriteLine($"");
+            }
+        }
+
+        public void Write(string dir, TextWriter sw, string line, char[] buffer, string ascii)
+        {
+            Print(dir, line, ascii);
+            if (SuppressHeartbeats && Regex.IsMatch(ascii, @"100 Idle Heartbeat"))
+            {
+                Console.WriteLine($"{new string(' ', dir.Length)}     [SUPPRESSED]");
+            }
+            else
+            {
+                sw.WriteLine(line);
+                sw.Write(buffer);
+                sw.Flush();
             }
         }
     }
@@ -329,38 +364,34 @@ public class Program
                 span = span[read..];
             }
 
-            var asciiBuffer = new StringBuilder();
+            var ascii = new StringBuilder();
             foreach (var c in buffer.AsSpan()[..size])
             {
                 switch (c)
                 {
                     case > ' ' and <= '~':
-                        asciiBuffer.Append(c);
+                        ascii.Append(c);
                         break;
                     case ' ':
-                        asciiBuffer.Append(' ');
+                        ascii.Append(' ');
                         break;
                     case '\t':
-                        asciiBuffer.Append("\\t");
+                        ascii.Append("\\t");
                         break;
                     case '\n':
-                        asciiBuffer.Append("\\n");
+                        ascii.Append("\\n");
                         break;
                     case '\r':
-                        asciiBuffer.Append("\\r");
+                        ascii.Append("\\r");
                         break;
                     default:
-                        asciiBuffer.Append('.');
+                        ascii.Append('.');
                         // sb.Append(Convert.ToString(c, 16));
                         break;
                 }
             }
 
-            sw.WriteLine(line);
-            sw.Write(buffer);
-            sw.Flush();
-
-            server.Print(dir, line, asciiBuffer.ToString());
+            server.Write(dir, sw, line, buffer, ascii.ToString());
             
             return true;
         }
