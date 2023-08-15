@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
@@ -76,9 +75,11 @@ public class Program
                                     h, ?, help         This message
                                     drop <client-id>   Close TCP connection of client
                                     hb                 Toggle suppressing JetStream Heartbeat messages
+                                    ctrl               Toggle displaying control messages
                                     q, quit            Quit program and stop nats-server
                                   
                                   Suppress HB:{{server.SuppressHeartbeats}}
+                                  Display CTRL:{{server.DisplayCtrl}}
                                   
                                   """);
             }
@@ -98,6 +99,19 @@ public class Program
                 {
                     Console.WriteLine("Suppress heartbeats");
                     server.SuppressHeartbeats = true;
+                }
+            }
+            else if (Regex.IsMatch(cmd, @"^\s*(ctrl)\s*$"))
+            {
+                if (server.DisplayCtrl)
+                {
+                    Console.WriteLine("Unsuppressed CTRL");
+                    server.DisplayCtrl = false;
+                }
+                else
+                {
+                    Console.WriteLine("Suppress CTRL");
+                    server.DisplayCtrl = true;
                 }
             }
             else if (cmd.StartsWith("drop"))
@@ -152,6 +166,13 @@ public class Program
         {
             get => Volatile.Read(ref _shb) == 1;
             set => Interlocked.Exchange(ref _shb, value ? 1 : 0);
+        }
+
+        private int _ctrl;
+        public bool DisplayCtrl
+        {
+            get => Volatile.Read(ref _ctrl) == 1;
+            set => Interlocked.Exchange(ref _ctrl, value ? 1 : 0);
         }
 
         public void NewClient(int id, TcpClient tcpClient)
@@ -243,21 +264,23 @@ public class Program
                         var v3 = ulong.Parse(m1.Groups[7].Value);
                         var v4 = ulong.Parse(m1.Groups[8].Value);
                         var v5 = ulong.Parse(m1.Groups[9].Value);
-                        js = $"[MSG] {subject} {stream}/{consumer} v1:{v1} v2:{v2} v3:{v3} v4:{v4} v5:{v5}" +
-                             $"\n    {new string(' ', dir.Length)} {ascii}";
+                        js = $"[MSG] {subject} {stream}/{consumer} v1:{v1} v2:{v2} v3:{v3} v4:{v4} v5:{v5}"
+                             // + $"\n    {new string(' ', dir.Length)} {ascii}"
+                             ;
                     }
                     
                     if (js != null)
                     {
-                        Console.WriteLine($"{dir} [JS] {js}");
+                        Console.WriteLine($"{dir} JS [{DateTime.Now:HH:mm:ss}] {js}");
                         return;
                     }
                 }
 
-                Console.WriteLine($"{dir} {line}\n{new string(' ', dir.Length)} {ascii}");
+                Console.WriteLine($"{dir} {line}\n{new string(' ', dir.Length)} {ascii}\n");
             }
             catch (Exception e)
             {
+                Console.WriteLine($"");
                 Console.WriteLine($"Print error :{e.Message}");
                 Console.WriteLine($"  dir:{dir}");
                 Console.WriteLine($"  line:{line}");
@@ -266,7 +289,7 @@ public class Program
             }
         }
 
-        public void Write(string dir, TextWriter sw, string line, char[] buffer, string ascii)
+        public void Write(TextWriter sw, string dir, string line, char[] buffer, string ascii)
         {
             Print(dir, line, ascii);
             if (SuppressHeartbeats && Regex.IsMatch(ascii, @"100 Idle Heartbeat"))
@@ -279,6 +302,18 @@ public class Program
                 sw.Write(buffer);
                 sw.Flush();
             }
+        }
+
+        public void WriteCtrl(TextWriter sw, string dir, string line)
+        {
+            // Ignore control messages
+            if (DisplayCtrl && !Regex.IsMatch(line, @"^(INFO|CONNECT|PING|PONG|\+OK)"))
+            {
+                Console.WriteLine($"{dir} {line}");
+            }
+
+            sw.WriteLine(line);
+            sw.Flush();
         }
     }
     
@@ -320,13 +355,13 @@ public class Program
                 Task.Run(() =>
                 {
                     // Client -> Server
-                    while (NatsProtoDump(server, $"\n[{n}] -->", csr, ssw))
+                    while (NatsProtoDump(server, $"[{n}] -->", csr, ssw))
                     {
                     }
                 });
                 
                 // Server -> client
-                while (NatsProtoDump(server, $"\n[{n}] <--", ssr, csw))
+                while (NatsProtoDump(server, $"[{n}] <--", ssr, csw))
                 {
                 }
             });
@@ -340,12 +375,7 @@ public class Program
 
         if (Regex.IsMatch(line, @"^(INFO|CONNECT|PING|PONG|UNSUB|SUB|\+OK|-ERR)"))
         {
-            // Ignore control messages
-            // if (!Regex.IsMatch(line, @"^(INFO|CONNECT|PING|PONG|\+OK)"))
-            Console.WriteLine($"{dir} {line}");
-
-            sw.WriteLine(line);
-            sw.Flush();
+            server.WriteCtrl(sw, dir, line);
             return true;
         }
 
@@ -391,7 +421,7 @@ public class Program
                 }
             }
 
-            server.Write(dir, sw, line, buffer, ascii.ToString());
+            server.Write(sw, dir, line, buffer, ascii.ToString());
             
             return true;
         }
