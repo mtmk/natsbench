@@ -87,6 +87,7 @@ public class Program
         
         var prt = Stopwatch.StartNew();
         var prompt = true;
+        
         while (true)
         {
             if (prompt)
@@ -95,6 +96,9 @@ public class Program
             }
             
             var cmd = Console.ReadLine();
+            
+            // Reset prompt if less than 700ms so we can
+            // create some space.
             if (Regex.IsMatch(cmd, @"^\s*$"))
             {
                 prompt = prt.Elapsed > TimeSpan.FromSeconds(.7);
