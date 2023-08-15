@@ -86,21 +86,25 @@ public class Program
         Console.WriteLine(help(server));
         
         var prt = Stopwatch.StartNew();
-        var usePrt = false;
+        var prompt = true;
         while (true)
         {
-            if (!usePrt || prt.Elapsed > TimeSpan.FromSeconds(1.5))
+            if (prompt)
             {
                 Console.Write("nnats-proxy> ");
-                prt.Restart();
-                usePrt = false;
             }
+            
             var cmd = Console.ReadLine();
             if (Regex.IsMatch(cmd, @"^\s*$"))
             {
-                usePrt = true;
+                prompt = prt.Elapsed > TimeSpan.FromSeconds(.7);
+                prt.Restart();
+                continue;
             }
-            else if (Regex.IsMatch(cmd, @"^\s*(\?|h|help)\s*$"))
+
+            prompt = true;
+            
+            if (Regex.IsMatch(cmd, @"^\s*(\?|h|help)\s*$"))
             {
                 Console.WriteLine(help(server));
             }
