@@ -65,13 +65,13 @@ public class Program
             if (Regex.IsMatch(cmd, @"^\s*$"))
             {
             }
-            else if (Regex.IsMatch(cmd, @"^\s*(h|help)\s*$"))
+            else if (Regex.IsMatch(cmd, @"^\s*(\?|h|help)\s*$"))
             {
                 Console.WriteLine("""
                                   
                                   NATS Wire Protocol Analysing TCP Proxy
                                   
-                                    h, help            This message
+                                    h, ?, help         This message
                                     drop <client-id>   Close TCP connection of client
                                     q, quit            Quit program and stop nats-server
                                   
@@ -188,13 +188,13 @@ public class Program
                 Task.Run(() =>
                 {
                     // Client -> Server
-                    while (NatsProtoDump($"[{n}] -->", csr, ssw))
+                    while (NatsProtoDump($"\n[{n}] -->", csr, ssw))
                     {
                     }
                 });
                 
                 // Server -> client
-                while (NatsProtoDump($"[{n}] <--", ssr, csw))
+                while (NatsProtoDump($"\n[{n}] <--", ssr, csw))
                 {
                 }
             });
