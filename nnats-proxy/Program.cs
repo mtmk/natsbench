@@ -12,6 +12,25 @@ public class Program
     {
         var port1 = 4222;
         var port2 = 4333;
+        var help = (Func<Server, string>)(
+            s => $$"""
+
+                   NATS Wire Protocol Analysing TCP Proxy
+                   
+                     h, ?, help         This message
+                     drop <client-id>   Close TCP connection of client
+                     ctrl               Toggle displaying core control messages
+                     js                 Toggle JetStream summarization
+                     js-hb              Toggle suppressing JetStream Heartbeat messages
+                     js-msg             Toggle displaying JetStream messages
+                     q, quit            Quit program and stop nats-server
+
+                   Display core control messages : {{s.DisplayCtrl}}
+                    Suppress JetStream Heartbeat : {{s.SuppressHeartbeats}}
+                    Summarize JetStream messages : {{s.JetStreamSummarization}}
+                      Display JetStream messages : {{s.DisplayMessages}}
+                                  
+                   """);
 
         Console.WriteLine($"NATS Simple Client Protocol Proxy");
         Console.WriteLine($"Starting nats-server");
@@ -51,68 +70,60 @@ public class Program
 
         Console.WriteLine("Started nats-server");
 
-        var server = new Server(js: true);
+        var server = new Server();
 
-        Task.Run(() => RunServer(server, IPAddress.Loopback, port1, port2));
+        var started1 = new ManualResetEventSlim();
+        var started2 = new ManualResetEventSlim();
+        Task.Run(() => RunServer(server, started1, IPAddress.Loopback, port1, port2));
         if (Socket.OSSupportsIPv6)
         {
-            Task.Run(() => RunServer(server, IPAddress.IPv6Loopback, port1, port2));
+            Task.Run(() => RunServer(server, started2, IPAddress.IPv6Loopback, port1, port2));
+            started2.Wait();
         }
+        started1.Wait();
 
+        Console.WriteLine();
+        Console.WriteLine(help(server));
+        
+        var prt = Stopwatch.StartNew();
+        var usePrt = false;
         while (true)
         {
-            Console.Write("nnats-proxy> ");
+            if (!usePrt || prt.Elapsed > TimeSpan.FromSeconds(1.5))
+            {
+                Console.Write("nnats-proxy> ");
+                prt.Restart();
+                usePrt = false;
+            }
             var cmd = Console.ReadLine();
             if (Regex.IsMatch(cmd, @"^\s*$"))
             {
+                usePrt = true;
             }
             else if (Regex.IsMatch(cmd, @"^\s*(\?|h|help)\s*$"))
             {
-                Console.WriteLine($$"""
-                                  
-                                  NATS Wire Protocol Analysing TCP Proxy
-                                  
-                                    h, ?, help         This message
-                                    drop <client-id>   Close TCP connection of client
-                                    hb                 Toggle suppressing JetStream Heartbeat messages
-                                    ctrl               Toggle displaying control messages
-                                    q, quit            Quit program and stop nats-server
-                                  
-                                  Suppress HB:{{server.SuppressHeartbeats}}
-                                  Display CTRL:{{server.DisplayCtrl}}
-                                  
-                                  """);
+                Console.WriteLine(help(server));
             }
             else if (Regex.IsMatch(cmd, @"^\s*(q|quit)\s*$"))
             {
                 Console.WriteLine("Bye");
                 break;
             }
-            else if (Regex.IsMatch(cmd, @"^\s*(hb)\s*$"))
-            {
-                if (server.SuppressHeartbeats)
-                {
-                    Console.WriteLine("Unsuppressed heartbeats");
-                    server.SuppressHeartbeats = false;
-                }
-                else
-                {
-                    Console.WriteLine("Suppress heartbeats");
-                    server.SuppressHeartbeats = true;
-                }
-            }
             else if (Regex.IsMatch(cmd, @"^\s*(ctrl)\s*$"))
             {
-                if (server.DisplayCtrl)
-                {
-                    Console.WriteLine("Unsuppressed CTRL");
-                    server.DisplayCtrl = false;
-                }
-                else
-                {
-                    Console.WriteLine("Suppress CTRL");
-                    server.DisplayCtrl = true;
-                }
+                server.DisplayCtrl = !server.DisplayCtrl;
+            }
+            else if (Regex.IsMatch(cmd, @"^\s*(js)\s*$"))
+            {
+                server.JetStreamSummarization = !server.JetStreamSummarization;
+            }
+            else if (Regex.IsMatch(cmd, @"^\s*(js-hb)\s*$"))
+            {
+                server.SuppressHeartbeats = !server.SuppressHeartbeats;
+            }
+            else if (Regex.IsMatch(cmd, @"^\s*(js-msg)\s*$"))
+            {
+                server.DisplayMessages = !server.DisplayMessages;
             }
             else if (cmd.StartsWith("drop"))
             {
@@ -153,12 +164,13 @@ public class Program
 
     class Server
     {
-        private readonly bool _js;
         private readonly ConcurrentDictionary<int, TcpClient> _clients = new();
 
-        public Server(bool js = false)
+        private int _js;
+        public bool JetStreamSummarization
         {
-            _js = js;
+            get => Volatile.Read(ref _js) == 1;
+            set => Interlocked.Exchange(ref _js, value ? 1 : 0);
         }
 
         private int _shb;
@@ -166,6 +178,13 @@ public class Program
         {
             get => Volatile.Read(ref _shb) == 1;
             set => Interlocked.Exchange(ref _shb, value ? 1 : 0);
+        }
+
+        private int _msg = 1;
+        public bool DisplayMessages
+        {
+            get => Volatile.Read(ref _msg) == 1;
+            set => Interlocked.Exchange(ref _msg, value ? 1 : 0);
         }
 
         private int _ctrl;
@@ -205,10 +224,10 @@ public class Program
         {
             try
             {
-                if (_js)
+                if (JetStreamSummarization)
                 {
                     string? js = null;
-
+                    var skip = false;
                     Match m1;
                     Match m2;
                     if ((m1 = Regex.Match(ascii, @"100 Idle Heartbeat\\r\\nNats-Last-Consumer: (\d+)\\r\\nNats-Last-Stream: (\d+)")).Success)
@@ -216,7 +235,7 @@ public class Program
                         // NATS/1.0 100 Idle Heartbeat\r\nNats-Last-Consumer: 107\r\nNats-Last-Stream: 107\r\n\r\n
                         var lastConsumer = m1.Groups[1].Value;
                         var lastStream = m1.Groups[2].Value;
-                        js = $"[Idle Heartbeat] consumer:{lastConsumer} stream:{lastStream}";
+                        js = $"[C] [IHB] consumer:{lastConsumer} stream:{lastStream}";
                     }
                     //else if ((m1 = Regex.Match(buffer, @"")).Success)
                     else if ((m1 = Regex.Match(ascii, @"408 Request Timeout\\r\\nNats-Pending-Messages: (\d+)\\r\\nNats-Pending-Bytes: (\d+)")).Success)
@@ -224,7 +243,7 @@ public class Program
                         // NATS/1.0 408 Request Timeout\r\nNats-Pending-Messages: 10\r\nNats-Pending-Bytes: 0\r\n\r\n
                         var pendingMsgs = m1.Groups[1].Value;
                         var pendingBytes = m1.Groups[2].Value;
-                        js = $"[Request Timeout] pending msgs:{pendingMsgs} bytes:{pendingBytes}";
+                        js = $"[C] [RTO] pending msgs:{pendingMsgs} bytes:{pendingBytes}";
                     }
                     else if ((m1 = Regex.Match(line, @"^PUB \$JS\.API\.CONSUMER\.MSG\.NEXT\.(\w+)\.(\w+)")).Success)
                     {
@@ -234,44 +253,64 @@ public class Program
                         var consumer = m1.Groups[2].Value;
                         var json = JsonNode.Parse(ascii);
                         var batch = json["batch"]?.GetValue<int>();
-                        js = $"[Pull] {stream}/{consumer} batch:{batch}";
+                        js = $"[C] [NXT] {stream}/{consumer} batch:{batch}";
                     }
                     else if (
                         (m1 = Regex.Match(line, @"^PUB \$JS\.ACK\.(\w+)\.(\w+)\.(\d+)\.(\d+)\.(\d+)\.(\d+)\.(\d+)")).Success
                         && (m2 = Regex.Match(ascii, @"^\+ACK$")).Success)
                     {
-                        // PUB $JS.ACK.s1.c2.1.119.119.1692099975248777900.0 4
-                        //+ACK
-                        var stream = m1.Groups[1].Value;
-                        var consumer = m1.Groups[2].Value;
-                        var v1 = ulong.Parse(m1.Groups[3].Value);
-                        var v2 = ulong.Parse(m1.Groups[4].Value);
-                        var v3 = ulong.Parse(m1.Groups[5].Value);
-                        var v4 = ulong.Parse(m1.Groups[6].Value);
-                        var v5 = ulong.Parse(m1.Groups[7].Value);
-                        js = $"[ACK] {stream}/{consumer} v1:{v1} v2:{v2} v3:{v3} v4:{v4} v5:{v5}";
+                        if (DisplayMessages)
+                        {
+                            // PUB $JS.ACK.s1.c2.1.119.119.1692099975248777900.0 4
+                            //+ACK
+                            var stream = m1.Groups[1].Value;
+                            var consumer = m1.Groups[2].Value;
+                            var v1 = ulong.Parse(m1.Groups[3].Value);
+                            var v2 = ulong.Parse(m1.Groups[4].Value);
+                            var v3 = ulong.Parse(m1.Groups[5].Value);
+                            var v4 = ulong.Parse(m1.Groups[6].Value);
+                            var v5 = ulong.Parse(m1.Groups[7].Value);
+                            js = $"[M] [ACK] {stream}/{consumer} v1:{v1} v2:{v2} v3:{v3} v4:{v4} v5:{v5}";
+                        }
+                        else
+                        {
+                            js = "";
+                            skip = true;
+                        }
                     }
                     else if ((m1 = Regex.Match(line, @"^MSG (\S+) (\S+) \$JS\.ACK\.(\w+)\.(\w+)\.(\d+)\.(\d+)\.(\d+)\.(\d+)\.(\d+)")).Success)
                     {
-                        // MSG s1.x 2 $JS.ACK.s1.c2.1.130.130.1692100700116417900.0 17
-                        // AAAAAAAAAAAAAAAAA
-                        var subject = m1.Groups[1].Value;
-                        var sid = m1.Groups[2].Value;
-                        var stream = m1.Groups[3].Value;
-                        var consumer = m1.Groups[4].Value;
-                        var v1 = ulong.Parse(m1.Groups[5].Value);
-                        var v2 = ulong.Parse(m1.Groups[6].Value);
-                        var v3 = ulong.Parse(m1.Groups[7].Value);
-                        var v4 = ulong.Parse(m1.Groups[8].Value);
-                        var v5 = ulong.Parse(m1.Groups[9].Value);
-                        js = $"[MSG] {subject} {stream}/{consumer} v1:{v1} v2:{v2} v3:{v3} v4:{v4} v5:{v5}"
-                             // + $"\n    {new string(' ', dir.Length)} {ascii}"
-                             ;
+                        if (DisplayMessages)
+                        {
+                            // MSG s1.x 2 $JS.ACK.s1.c2.1.130.130.1692100700116417900.0 17
+                            // AAAAAAAAAAAAAAAAA
+                            var subject = m1.Groups[1].Value;
+                            var sid = m1.Groups[2].Value;
+                            var stream = m1.Groups[3].Value;
+                            var consumer = m1.Groups[4].Value;
+                            var v1 = ulong.Parse(m1.Groups[5].Value);
+                            var v2 = ulong.Parse(m1.Groups[6].Value);
+                            var v3 = ulong.Parse(m1.Groups[7].Value);
+                            var v4 = ulong.Parse(m1.Groups[8].Value);
+                            var v5 = ulong.Parse(m1.Groups[9].Value);
+                            js = $"[M] [MSG] {subject} {stream}/{consumer} v1:{v1} v2:{v2} v3:{v3} v4:{v4} v5:{v5}"
+                                // + $"\n    {new string(' ', dir.Length)} {ascii}"
+                                ;
+                        }
+                        else
+                        {
+                            js = "";
+                            skip = true;
+                        }
                     }
                     
                     if (js != null)
                     {
-                        Console.WriteLine($"{dir} JS [{DateTime.Now:HH:mm:ss}] {js}");
+                        if (!skip)
+                        {
+                            Console.WriteLine($"{dir} JS {DateTime.Now:HH:mm:ss} {js}");
+                        }
+
                         return;
                     }
                 }
@@ -317,7 +356,7 @@ public class Program
         }
     }
     
-    static void RunServer(Server server, IPAddress address, int proxyPort, int serverPort)
+    static void RunServer(Server server, ManualResetEventSlim started, IPAddress address, int proxyPort, int serverPort)
     {
         var tcpListener = new TcpListener(address, proxyPort);
 
@@ -326,6 +365,7 @@ public class Program
         tcpListener.Start();
 
         Console.WriteLine($"Proxy is listening on {tcpListener.LocalEndpoint}");
+        started.Set();
         
         while (true)
         {
