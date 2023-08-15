@@ -3,6 +3,8 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
 public class Program
@@ -50,7 +52,7 @@ public class Program
 
         Console.WriteLine("Started nats-server");
 
-        var server = new Server();
+        var server = new Server(js: true);
 
         Task.Run(() => RunServer(server, IPAddress.Loopback, port1, port2));
         if (Socket.OSSupportsIPv6)
@@ -121,7 +123,13 @@ public class Program
 
     class Server
     {
+        private readonly bool _js;
         private readonly ConcurrentDictionary<int, TcpClient> _clients = new();
+
+        public Server(bool js = false)
+        {
+            _js = js;
+        }
 
         public void NewClient(int id, TcpClient tcpClient)
         {
@@ -146,6 +154,95 @@ public class Program
             else
             {
                 Console.WriteLine($"Error: Can't find client [{id}]");
+            }
+        }
+
+        public void Print(string dir, string line, string buffer)
+        {
+            try
+            {
+                if (_js)
+                {
+                    string? js = null;
+
+                    Match m1;
+                    Match m2;
+                    if ((m1 = Regex.Match(buffer,
+                            @"100 Idle Heartbeat\\r\\nNats-Last-Consumer: (\d+)\\r\\nNats-Last-Stream: (\d+)")).Success)
+                    {
+                        // NATS/1.0 100 Idle Heartbeat\r\nNats-Last-Consumer: 107\r\nNats-Last-Stream: 107\r\n\r\n
+                        var lastConsumer = m1.Groups[1].Value;
+                        var lastStream = m1.Groups[2].Value;
+                        js = $"[Idle Heartbeat] consumer:{lastConsumer} stream:{lastStream}";
+                    }
+                    //else if ((m1 = Regex.Match(buffer, @"")).Success)
+                    else if ((m1 = Regex.Match(buffer,
+                                 @"408 Request Timeout\\r\\nNats-Pending-Messages: (\d+)\\r\\nNats-Pending-Bytes: (\d+)"))
+                             .Success)
+                    {
+                        // NATS/1.0 408 Request Timeout\r\nNats-Pending-Messages: 10\r\nNats-Pending-Bytes: 0\r\n\r\n
+                        var pendingMsgs = m1.Groups[1].Value;
+                        var pendingBytes = m1.Groups[2].Value;
+                        js = $"[Request Timeout] pending msgs:{pendingMsgs} bytes:{pendingBytes}";
+                    }
+                    else if ((m1 = Regex.Match(line, @"^PUB \$JS\.API\.CONSUMER\.MSG\.NEXT\.(\w+)\.(\w+)")).Success)
+                    {
+                        // PUB $JS.API.CONSUMER.MSG.NEXT.s1.c2 _INBOX.82YIGQ8W3TI0XNGETMHF03 77
+                        // {"batch":10,"max_bytes":0,"idle_heartbeat":15000000000,"expires":30000000000}
+                        var stream = m1.Groups[1].Value;
+                        var consumer = m1.Groups[2].Value;
+                        var json = JsonNode.Parse(buffer);
+                        var batch = json["batch"]?.GetValue<int>();
+                        js = $"[Pull] {stream}/{consumer} batch:{batch}";
+                    }
+                    else if (
+                        (m1 = Regex.Match(line, @"^PUB \$JS\.ACK\.(\w+)\.(\w+)\.(\d+)\.(\d+)\.(\d+)\.(\d+)\.(\d+)")).Success
+                        && (m2 = Regex.Match(buffer, @"^\+ACK$")).Success)
+                    {
+                        // PUB $JS.ACK.s1.c2.1.119.119.1692099975248777900.0 4
+                        //+ACK
+                        var stream = m1.Groups[1].Value;
+                        var consumer = m1.Groups[2].Value;
+                        var v1 = ulong.Parse(m1.Groups[3].Value);
+                        var v2 = ulong.Parse(m1.Groups[4].Value);
+                        var v3 = ulong.Parse(m1.Groups[5].Value);
+                        var v4 = ulong.Parse(m1.Groups[6].Value);
+                        var v5 = ulong.Parse(m1.Groups[7].Value);
+                        js = $"[ACK] {stream}/{consumer} v1:{v1} v2:{v2} v3:{v3} v4:{v4} v5:{v5}";
+                    }
+                    else if ((m1 = Regex.Match(line, @"^MSG (\S+) (\S+) \$JS\.ACK\.(\w+)\.(\w+)\.(\d+)\.(\d+)\.(\d+)\.(\d+)\.(\d+)")).Success)
+                    {
+                        // MSG s1.x 2 $JS.ACK.s1.c2.1.130.130.1692100700116417900.0 17
+                        // AAAAAAAAAAAAAAAAA
+                        var subject = m1.Groups[1].Value;
+                        var sid = m1.Groups[2].Value;
+                        var stream = m1.Groups[3].Value;
+                        var consumer = m1.Groups[4].Value;
+                        var v1 = ulong.Parse(m1.Groups[5].Value);
+                        var v2 = ulong.Parse(m1.Groups[6].Value);
+                        var v3 = ulong.Parse(m1.Groups[7].Value);
+                        var v4 = ulong.Parse(m1.Groups[8].Value);
+                        var v5 = ulong.Parse(m1.Groups[9].Value);
+                        js = $"[MSG] {subject} {stream}/{consumer} v1:{v1} v2:{v2} v3:{v3} v4:{v4} v5:{v5}" +
+                             $"\n    {new string(' ', dir.Length)} {buffer}";
+                    }
+                    
+                    if (js != null)
+                    {
+                        Console.WriteLine($"{dir} [JS] {js}");
+                        return;
+                    }
+                }
+
+                Console.WriteLine($"{dir} {line}\n{new string(' ', dir.Length)} {buffer}");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Print error :{e.Message}");
+                Console.WriteLine($"  dir:{dir}");
+                Console.WriteLine($"  line:{line}");
+                Console.WriteLine($"  buffer:{buffer}");
+                Console.WriteLine($"");
             }
         }
     }
@@ -188,20 +285,20 @@ public class Program
                 Task.Run(() =>
                 {
                     // Client -> Server
-                    while (NatsProtoDump($"\n[{n}] -->", csr, ssw))
+                    while (NatsProtoDump(server, $"\n[{n}] -->", csr, ssw))
                     {
                     }
                 });
                 
                 // Server -> client
-                while (NatsProtoDump($"\n[{n}] <--", ssr, csw))
+                while (NatsProtoDump(server, $"\n[{n}] <--", ssr, csw))
                 {
                 }
             });
         }
     }
 
-    static bool NatsProtoDump(string dir, StreamReader sr, StreamWriter sw)
+    static bool NatsProtoDump(Server server, string dir, StreamReader sr, StreamWriter sw)
     {
         var line = sr.ReadLine();
         if (line == null) return false;
@@ -232,28 +329,28 @@ public class Program
                 span = span[read..];
             }
 
-            var sb = new StringBuilder();
+            var asciiBuffer = new StringBuilder();
             foreach (var c in buffer.AsSpan()[..size])
             {
                 switch (c)
                 {
                     case > ' ' and <= '~':
-                        sb.Append(c);
+                        asciiBuffer.Append(c);
                         break;
                     case ' ':
-                        sb.Append(' ');
+                        asciiBuffer.Append(' ');
                         break;
                     case '\t':
-                        sb.Append("\\t");
+                        asciiBuffer.Append("\\t");
                         break;
                     case '\n':
-                        sb.Append("\\n");
+                        asciiBuffer.Append("\\n");
                         break;
                     case '\r':
-                        sb.Append("\\r");
+                        asciiBuffer.Append("\\r");
                         break;
                     default:
-                        sb.Append('.');
+                        asciiBuffer.Append('.');
                         // sb.Append(Convert.ToString(c, 16));
                         break;
                 }
@@ -262,7 +359,9 @@ public class Program
             sw.WriteLine(line);
             sw.Write(buffer);
             sw.Flush();
-            Console.WriteLine($"{dir} {line}\n{new string(' ', dir.Length)} {sb}");
+
+            server.Print(dir, line, asciiBuffer.ToString());
+            
             return true;
         }
 
