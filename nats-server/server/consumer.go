@@ -2676,7 +2676,7 @@ var (
 
 // Adds in a new request.
 func (wq *waitQueue) add(wr *waitingRequest) error {
-	fmt.Println("### Add waiting request", "expires:", wr.expires)
+	//fmt.Println("### Add waiting request", "expires:", wr.expires)
 
 	if wq == nil {
 		return errWaitQueueNil
@@ -2935,6 +2935,9 @@ func (o *consumer) processNextMsgRequest(reply string, msg []byte) {
 
 	// Check payload here to see if they sent in batch size or a formal request.
 	expires, batchSize, maxBytes, noWait, hb, hbt, err := nextReqFromMsg(msg)
+
+	fmt.Println("### Request expires:", expires.Second(), "batch:", batchSize)
+
 	if err != nil {
 		sendErr(400, fmt.Sprintf("Bad Request - %v", err))
 		return

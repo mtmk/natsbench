@@ -11,6 +11,7 @@
 
     <!-- TODO: Let JetStream packages to be created when code is ready for preview -->
     <IsPackable>false</IsPackable>
+    <LangVersion>11</LangVersion>
 
   </PropertyGroup>
 

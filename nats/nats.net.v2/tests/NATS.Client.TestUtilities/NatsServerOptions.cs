@@ -22,7 +22,6 @@ public sealed class NatsServerOptionsBuilder
     private string? _tlsCaFile;
     private TransportType? _transportType;
     private bool _trace;
-    private bool _serverDisposeReturnsPorts = true;
 
     public NatsServerOptions Build()
     {
@@ -37,7 +36,6 @@ public sealed class NatsServerOptionsBuilder
             ExtraConfigs = _extraConfigs,
             TransportType = _transportType ?? TransportType.Tcp,
             Trace = _trace,
-            ServerDisposeReturnsPorts = _serverDisposeReturnsPorts,
         };
     }
 
@@ -75,12 +73,6 @@ public sealed class NatsServerOptionsBuilder
     public NatsServerOptionsBuilder AddServerConfig(string config)
     {
         _extraConfigs.Add(File.ReadAllText(config));
-        return this;
-    }
-
-    public NatsServerOptionsBuilder KeepPorts()
-    {
-        _serverDisposeReturnsPorts = false;
         return this;
     }
 }
@@ -150,21 +142,12 @@ public sealed class NatsServerOptions : IDisposable
 
     public int? WebSocketPort => _lazyWebSocketPort.Value;
 
-    public int? StaticServerPort { get; set; }
-    public int? StaticClusteringPort { get; set; }
-    public int? StaticWebSocketPort { get; set; }
-    
-    public int? SelectedServerPort { get; set; }
-    public int? SelectedClusteringPort { get; set; }
-    public int? SelectedWebSocketPort { get; set; }
-    
     public string ConfigFileContents
     {
         get
         {
-            SelectedServerPort = StaticServerPort ?? ServerPort;            
             var sb = new StringBuilder();
-            sb.AppendLine($"port: {SelectedServerPort}");
+            sb.AppendLine($"port: {ServerPort}");
 
             if (Trace)
             {
@@ -173,19 +156,17 @@ public sealed class NatsServerOptions : IDisposable
 
             if (EnableWebSocket)
             {
-                SelectedWebSocketPort = StaticWebSocketPort ?? WebSocketPort;
                 sb.AppendLine("websocket {");
-                sb.AppendLine($"  port: {SelectedWebSocketPort}");
+                sb.AppendLine($"  port: {WebSocketPort}");
                 sb.AppendLine("  no_tls: true");
                 sb.AppendLine("}");
             }
 
             if (EnableClustering)
             {
-                SelectedClusteringPort = StaticClusteringPort ?? ClusteringPort;
                 sb.AppendLine("cluster {");
                 sb.AppendLine("  name: nats");
-                sb.AppendLine($"  port: {SelectedClusteringPort}");
+                sb.AppendLine($"  port: {ClusteringPort}");
                 sb.AppendLine($"  routes: [{_routes}]");
                 sb.AppendLine("}");
             }

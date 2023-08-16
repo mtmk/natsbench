@@ -94,6 +94,8 @@ public partial class NatsConnection : IAsyncDisposable, INatsConnection
 
     internal string InboxPrefix { get; }
 
+    internal ObjectPool ObjectPool => _pool;
+
     /// <summary>
     /// Connect socket and write CONNECT command to nats server.
     /// </summary>
@@ -385,6 +387,12 @@ public partial class NatsConnection : IAsyncDisposable, INatsConnection
             _writerState.PriorityCommands.Add(connectCommand);
             _writerState.PriorityCommands.Add(PingCommand.Create(_pool, GetCancellationTimer(CancellationToken.None)));
 
+            if (reconnect)
+            {
+                // Reestablish subscriptions and consumers
+                _writerState.PriorityCommands.AddRange(SubscriptionManager.GetReconnectCommands());
+            }
+
             // create the socket writer
             _socketWriter = new NatsPipeliningWriteProtocolProcessor(_socket!, _writerState, _pool, Counter);
 
@@ -393,8 +401,6 @@ public partial class NatsConnection : IAsyncDisposable, INatsConnection
 
             // receive COMMAND response (PONG or ERROR)
             await waitForPongOrErrorSignal.Task.ConfigureAwait(false);
-
-
         }
         catch (Exception)
         {
@@ -404,24 +410,14 @@ public partial class NatsConnection : IAsyncDisposable, INatsConnection
         }
     }
 
-    private int _rc;
-    private readonly SemaphoreSlim _reconnectLock = new(initialCount: 1, maxCount: 1);
-    private int _pid = Environment.ProcessId;
     private async void ReconnectLoop()
     {
-        var rc = Interlocked.Increment(ref _rc);
-        await _reconnectLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try
         {
-            Console.WriteLine($"XXXXXXXXXX[{_pid}][{rc}] ReconnectLoop wait...");
-
             // If dispose this client, WaitForClosed throws OperationCanceledException so stop reconnect-loop correctly.
             await _socket!.WaitForClosed.ConfigureAwait(false);
 
-            Console.WriteLine($"XXXXXXXXXX[{_pid}][{rc}] ReconnectLoop reconnecting...");
-
-            _logger.LogTrace(
-                $"Detect connection {_name} closed, start to cleanup current connection and start to reconnect.");
+            _logger.LogTrace($"Detect connection {_name} closed, start to cleanup current connection and start to reconnect.");
             lock (_gate)
             {
                 ConnectionState = NatsConnectionState.Reconnecting;
@@ -438,11 +434,9 @@ public partial class NatsConnection : IAsyncDisposable, INatsConnection
 
             var defaultScheme = _currentConnectUri!.Uri.Scheme;
             var urls = (Options.NoRandomize
-                           ? WritableServerInfo?.ClientConnectUrls?.Select(x => new NatsUri(x, false, defaultScheme))
-                               .Distinct().ToArray()
-                           : WritableServerInfo?.ClientConnectUrls?.Select(x => new NatsUri(x, false, defaultScheme))
-                               .OrderBy(_ => Guid.NewGuid()).Distinct().ToArray())
-                       ?? Array.Empty<NatsUri>();
+                ? WritableServerInfo?.ClientConnectUrls?.Select(x => new NatsUri(x, false, defaultScheme)).Distinct().ToArray()
+                : WritableServerInfo?.ClientConnectUrls?.Select(x => new NatsUri(x, false, defaultScheme)).OrderBy(_ => Guid.NewGuid()).Distinct().ToArray())
+                    ?? Array.Empty<NatsUri>();
             if (urls.Length == 0)
                 urls = Options.GetSeedUris();
 
@@ -452,7 +446,7 @@ public partial class NatsConnection : IAsyncDisposable, INatsConnection
             _currentConnectUri = null;
             var urlEnumerator = urls.AsEnumerable().GetEnumerator();
             NatsUri? url = null;
-            CONNECT_AGAIN:
+        CONNECT_AGAIN:
             try
             {
                 if (urlEnumerator.MoveNext())
@@ -512,42 +506,12 @@ public partial class NatsConnection : IAsyncDisposable, INatsConnection
                 _ = Task.Run(ReconnectLoop);
                 ConnectionOpened?.Invoke(this, url?.ToString() ?? string.Empty);
             }
-
-            // ThreadPool.UnsafeQueueUserWorkItem(_ =>
-            // {
-            //     Console.WriteLine($"XXXXXXXXXX[{_pid}][{rc}] RECONNECT...");
-            //     // Reestablish subscriptions and consumers
-            //     try
-            //     {
-            //         SubscriptionManager.ReconnectAsync(rc, _disposedCancellationTokenSource.Token)
-            //             .GetAwaiter()
-            //             .GetResult();
-            //     }
-            //     catch (Exception e)
-            //     {
-            //         Console.WriteLine($"XXXXXXXXXX[{_pid}][{rc}] RECONNECT ERROR: {e}");
-            //     }
-            //
-            //     Console.WriteLine($"XXXXXXXXXX[{_pid}][{rc}] RECONNECT DONE.");
-            // }, null);
-            //if (reconnect)
-            {
-                Console.WriteLine($"XXXXXXXXXX[{rc}] RECONNECT...");
-                // Reestablish subscriptions and consumers
-                await SubscriptionManager.ReconnectAsync(rc, _disposedCancellationTokenSource.Token).ConfigureAwait(false);
-                Console.WriteLine($"XXXXXXXXXX[{rc}] RECONNECT DONE.");
-            }
         }
         catch (Exception ex)
         {
             if (ex is OperationCanceledException)
                 return;
-            Console.WriteLine($"XXXXXXXXXX[{rc}] RECONNECT LOOP ERROR: {ex}");
             _logger.LogError(ex, "Unknown error, loop stopped and connection is invalid state.");
-        }
-        finally
-        {
-            _reconnectLock.Release();
         }
     }
 

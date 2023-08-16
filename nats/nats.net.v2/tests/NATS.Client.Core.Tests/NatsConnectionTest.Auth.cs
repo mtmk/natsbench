@@ -1,5 +1,3 @@
-using System.Diagnostics;
-
 namespace NATS.Client.Core.Tests;
 
 public abstract partial class NatsConnectionTest
@@ -8,180 +6,175 @@ public abstract partial class NatsConnectionTest
     {
         yield return new object[]
         {
-            "TOKEN",
-            "resources/configs/auth/token.conf",
-            NatsOptions.Default with
-            {
-                AuthOptions = NatsAuthOptions.Default with
-                {
-                    Token = "s3cr3t",
-                },
-            },
+            new Auth(
+                "TOKEN",
+                "resources/configs/auth/token.conf",
+                NatsOptions.Default with { AuthOptions = NatsAuthOptions.Default with { Token = "s3cr3t", }, }),
         };
 
         yield return new object[]
         {
-            "USER-PASSWORD",
-            "resources/configs/auth/password.conf",
-            NatsOptions.Default with
-            {
-                AuthOptions = NatsAuthOptions.Default with
+            new Auth(
+                "USER-PASSWORD",
+                "resources/configs/auth/password.conf",
+                NatsOptions.Default with
                 {
-                    Username = "a",
-                    Password = "b",
-                },
-            },
+                    AuthOptions = NatsAuthOptions.Default with { Username = "a", Password = "b", },
+                }),
         };
 
         yield return new object[]
         {
-            "NKEY",
-            "resources/configs/auth/nkey.conf",
-            NatsOptions.Default with
-            {
-                AuthOptions = NatsAuthOptions.Default with
+            new Auth(
+                "NKEY",
+                "resources/configs/auth/nkey.conf",
+                NatsOptions.Default with
                 {
-                    Nkey = "UALQSMXRSAA7ZXIGDDJBJ2JOYJVQIWM3LQVDM5KYIPG4EP3FAGJ47BOJ",
-                    Seed = "SUAAVWRZG6M5FA5VRRGWSCIHKTOJC7EWNIT4JV3FTOIPO4OBFR5WA7X5TE",
-                },
-            },
+                    AuthOptions = NatsAuthOptions.Default with
+                    {
+                        Nkey = "UALQSMXRSAA7ZXIGDDJBJ2JOYJVQIWM3LQVDM5KYIPG4EP3FAGJ47BOJ",
+                        Seed = "SUAAVWRZG6M5FA5VRRGWSCIHKTOJC7EWNIT4JV3FTOIPO4OBFR5WA7X5TE",
+                    },
+                }),
         };
 
         yield return new object[]
         {
-            "NKEY (FROM FILE)",
-            "resources/configs/auth/nkey.conf",
-            NatsOptions.Default with
-            {
-                AuthOptions = NatsAuthOptions.Default with
+            new Auth(
+                "NKEY (FROM FILE)",
+                "resources/configs/auth/nkey.conf",
+                NatsOptions.Default with
                 {
-                    NKeyFile = "resources/configs/auth/user.nk",
-                },
-            },
+                    AuthOptions = NatsAuthOptions.Default with { NKeyFile = "resources/configs/auth/user.nk", },
+                }),
         };
 
         yield return new object[]
         {
-            "USER-CREDS",
-            "resources/configs/auth/operator.conf",
-            NatsOptions.Default with
-            {
-                AuthOptions = NatsAuthOptions.Default with
+            new Auth(
+                "USER-CREDS",
+                "resources/configs/auth/operator.conf",
+                NatsOptions.Default with
                 {
-                    Jwt =
-                    "eyJ0eXAiOiJKV1QiLCJhbGciOiJlZDI1NTE5LW5rZXkifQ.eyJqdGkiOiJOVDJTRkVIN0pNSUpUTzZIQ09GNUpYRFNDUU1WRlFNV0MyWjI1TFk3QVNPTklYTjZFVlhBIiwiaWF0IjoxNjc5MTQ0MDkwLCJpc3MiOiJBREpOSlpZNUNXQlI0M0NOSzJBMjJBMkxPSkVBSzJSS1RaTk9aVE1HUEVCRk9QVE5FVFBZTUlLNSIsIm5hbWUiOiJteS11c2VyIiwic3ViIjoiVUJPWjVMUVJPTEpRRFBBQUNYSk1VRkJaS0Q0R0JaSERUTFo3TjVQS1dSWFc1S1dKM0VBMlc0UloiLCJuYXRzIjp7InB1YiI6e30sInN1YiI6e30sInN1YnMiOi0xLCJkYXRhIjotMSwicGF5bG9hZCI6LTEsInR5cGUiOiJ1c2VyIiwidmVyc2lvbiI6Mn19.ElYEknDixe9pZdl55S9PjduQhhqR1OQLglI1JO7YK7ECYb1mLUjGd8ntcR7ISS04-_yhygSDzX8OS8buBIxMDA",
-                    Seed = "SUAJR32IC6D45J3URHJ5AOQZWBBO6QTID27NZQKXE3GC5U3SPFEYDJK6RQ",
-                },
-            },
+                    AuthOptions = NatsAuthOptions.Default with
+                    {
+                        Jwt =
+                        "eyJ0eXAiOiJKV1QiLCJhbGciOiJlZDI1NTE5LW5rZXkifQ.eyJqdGkiOiJOVDJTRkVIN0pNSUpUTzZIQ09GNUpYRFNDUU1WRlFNV0MyWjI1TFk3QVNPTklYTjZFVlhBIiwiaWF0IjoxNjc5MTQ0MDkwLCJpc3MiOiJBREpOSlpZNUNXQlI0M0NOSzJBMjJBMkxPSkVBSzJSS1RaTk9aVE1HUEVCRk9QVE5FVFBZTUlLNSIsIm5hbWUiOiJteS11c2VyIiwic3ViIjoiVUJPWjVMUVJPTEpRRFBBQUNYSk1VRkJaS0Q0R0JaSERUTFo3TjVQS1dSWFc1S1dKM0VBMlc0UloiLCJuYXRzIjp7InB1YiI6e30sInN1YiI6e30sInN1YnMiOi0xLCJkYXRhIjotMSwicGF5bG9hZCI6LTEsInR5cGUiOiJ1c2VyIiwidmVyc2lvbiI6Mn19.ElYEknDixe9pZdl55S9PjduQhhqR1OQLglI1JO7YK7ECYb1mLUjGd8ntcR7ISS04-_yhygSDzX8OS8buBIxMDA",
+                        Seed = "SUAJR32IC6D45J3URHJ5AOQZWBBO6QTID27NZQKXE3GC5U3SPFEYDJK6RQ",
+                    },
+                }),
         };
 
         yield return new object[]
         {
-            "USER-CREDS (FROM FILE)",
-            "resources/configs/auth/operator.conf",
-            NatsOptions.Default with
-            {
-                AuthOptions = NatsAuthOptions.Default with
+            new Auth(
+                "USER-CREDS (FROM FILE)",
+                "resources/configs/auth/operator.conf",
+                NatsOptions.Default with
                 {
-                    CredsFile = "resources/configs/auth/user.creds",
-                },
-            },
+                    AuthOptions = NatsAuthOptions.Default with { CredsFile = "resources/configs/auth/user.creds", },
+                }),
         };
     }
 
     [Theory]
     [MemberData(nameof(GetAuthConfigs))]
-    public async Task UserCredentialAuthTest(string name, string serverConfig, NatsOptions clientOptions)
+    public async Task UserCredentialAuthTest(Auth auth)
     {
-        var op = new ConsoleOutputHelper(name);
+        var name = auth.Name;
+        var serverConfig = auth.ServerConfig;
+        var clientOptions = auth.ClientOptions;
 
-        void Log(string msg)
+        _output.WriteLine($"AUTH TEST {name}");
+
+        var serverOptions = new NatsServerOptionsBuilder()
+            .UseTransport(_transportType)
+            .AddServerConfig(serverConfig)
+            .Build();
+
+        await using var server = NatsServer.Start(_output, serverOptions, clientOptions);
+
+        var subject = Guid.NewGuid().ToString("N");
+
+        _output.WriteLine("TRY ANONYMOUS CONNECTION");
         {
-            op.WriteLine($"[TEST] {DateTime.UtcNow:HH:mm:ss.fff} {msg}");
+            await using var failConnection = server.CreateClientConnection(ignoreAuthorizationException: true);
+            var natsException =
+                await Assert.ThrowsAsync<NatsException>(async () => await failConnection.PublishAsync(subject, 0));
+            Assert.Contains("Authorization Violation", natsException.GetBaseException().Message);
         }
-        
-        Log($"xxxxx {name} # # # #  S T A R T  # # # #");
 
-        //try
-        //{
-            Log($"AUTH TEST {name}");
+        await using var subConnection = server.CreateClientConnection(clientOptions);
+        await using var pubConnection = server.CreateClientConnection(clientOptions);
 
-            var serverOptions = new NatsServerOptionsBuilder()
-                .UseTransport(_transportType)
-                .Trace()
-                .KeepPorts()
-                .AddServerConfig(serverConfig)
-                .Build();
+        var signalComplete1 = new WaitSignal();
+        var signalComplete2 = new WaitSignal();
 
-            await using var server = NatsServer.Start(op, serverOptions, clientOptions);
+        var syncCount = 0;
+        var natsSub = await subConnection.SubscribeAsync<int>(subject);
+        var register = natsSub.Register(x =>
+        {
+            Interlocked.Increment(ref syncCount);
+            _output.WriteLine($"Received: {x}");
+            if (x.Data == 1)
+                signalComplete1.Pulse();
+            if (x.Data == 2)
+                signalComplete2.Pulse();
+        });
 
-            var subject = Guid.NewGuid().ToString("N");
+        var syncCount1 = Volatile.Read(ref syncCount);
+        await Retry.Until(
+            "subscribed",
+            () => syncCount1 != Volatile.Read(ref syncCount),
+            async () => await pubConnection.PublishAsync(subject, 0));
 
-            Log("TRY ANONYMOUS CONNECTION");
-            {
-                await using var failConnection = server.CreateClientConnection(ignoreAuthorizationException: true);
-                var natsException =
-                    await Assert.ThrowsAsync<NatsException>(async () => await failConnection.PublishAsync(subject, 0));
-                Assert.Contains("Authorization Violation", natsException.GetBaseException().Message);
-            }
+        _output.WriteLine("AUTHENTICATED CONNECTION");
+        await pubConnection.PublishAsync(subject, 1);
+        await signalComplete1;
 
-            await using var subConnection = server.CreateClientConnection(clientOptions);
-            await using var pubConnection = server.CreateClientConnection(clientOptions);
+        var disconnectSignal1 = subConnection.ConnectionDisconnectedAsAwaitable();
+        var disconnectSignal2 = pubConnection.ConnectionDisconnectedAsAwaitable();
 
-            var signalComplete1 = new WaitSignal(timeout: TimeSpan.FromSeconds(60));
-            var signalComplete2 = new WaitSignal(timeout: TimeSpan.FromSeconds(60));
+        _output.WriteLine("TRY DISCONNECT START");
+        await server.DisposeAsync(); // disconnect server
+        await disconnectSignal1;
+        await disconnectSignal2;
 
-            var natsSub = await subConnection.SubscribeAsync<int>(subject);
+        _output.WriteLine("START NEW SERVER");
+        await using var newServer = NatsServer.Start(_output, serverOptions, clientOptions);
+        await subConnection.ConnectAsync(); // wait open again
+        await pubConnection.ConnectAsync(); // wait open again
 
-            int xx = 0;
-            var register = natsSub.Register(x =>
-            {
-                Interlocked.Increment(ref xx);
-                Log($"xxxxx Received: {x}");
-                if (x.Data == 1)
-                    signalComplete1.Pulse();
-                if (x.Data == 2)
-                    signalComplete2.Pulse();
-            });
+        _output.WriteLine("AUTHENTICATED RE-CONNECTION");
 
-            await subConnection.PingAsync(); // wait for subscribe complete
+        var syncCount2 = Volatile.Read(ref syncCount);
+        await Retry.Until(
+            "re-subscribed",
+            () => syncCount2 != Volatile.Read(ref syncCount),
+            async () => await pubConnection.PublishAsync(subject, 0));
 
-            Log("AUTHENTICATED CONNECTION");
-            await pubConnection.PublishAsync(subject, 1);
-            await signalComplete1;
+        await pubConnection.PublishAsync(subject, 2);
+        await signalComplete2;
 
-            var disconnectSignal1 = subConnection.ConnectionDisconnectedAsAwaitable();
-            var disconnectSignal2 = pubConnection.ConnectionDisconnectedAsAwaitable();
+        await natsSub.DisposeAsync();
+        await register;
+    }
 
-            Log("TRY DISCONNECT START");
-            await server.DisposeAsync(); // disconnect server
-            await disconnectSignal1;
-            await disconnectSignal2;
+    public class Auth
+    {
+        public Auth(string name, string serverConfig, NatsOptions clientOptions)
+        {
+            Name = name;
+            ServerConfig = serverConfig;
+            ClientOptions = clientOptions;
+        }
 
-            Log("START NEW SERVER");
-            await using var newServer = NatsServer.Start(op, serverOptions, clientOptions);
-            await subConnection.ConnectAsync(); // wait open again
-            await pubConnection.ConnectAsync(); // wait open again
+        public string Name { get; }
 
-            Log("AUTHENTICATED RE-CONNECTION");
+        public string ServerConfig { get; }
 
-            var xx1 = Volatile.Read(ref xx);
-            await Retry.Until("xx",
-                () => xx1 != Volatile.Read(ref xx),
-                async () => await pubConnection.PublishAsync(subject, 0) 
-            );
-            
-            await pubConnection.PublishAsync(subject, 2);
-            await signalComplete2;
+        public NatsOptions ClientOptions { get; }
 
-            await natsSub.DisposeAsync();
-            await register;
-
-            Log($"xxxxx {name} # # # #  E N D  # # # #");
-        //}
-        //catch (Exception e)
-        //{
-        //    Log($"xxxxx {name} # # # #  !!!!!!!!!! FAILED !!!!!!!!!  # # # # {e}");
-        //}
+        public override string ToString() => Name;
     }
 }

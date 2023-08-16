@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Runtime.ExceptionServices;
 using Microsoft.Extensions.Logging;
 using NATS.Client.Core;
+using NATS.Client.Core.Commands;
 using NATS.Client.Core.Internal;
 using NATS.Client.JetStream.Models;
 
@@ -57,8 +58,23 @@ internal abstract class NatsJSSubBase<T> : NatsSubBase
     public override async ValueTask ReadyAsync()
     {
         await base.ReadyAsync().ConfigureAwait(false);
-        await CallMsgNextAsync(_state.GetRequest()).ConfigureAwait(false);
+        await CallMsgNextAsync(_state.GetRequest(init: true)).ConfigureAwait(false);
         ResetHeartbeatTimer();
+    }
+
+    internal override IEnumerable<ICommand> GetReconnectCommands(int sid)
+    {
+        foreach (var command in base.GetReconnectCommands(sid))
+            yield return command;
+
+        yield return PublishCommand<ConsumerGetnextRequest>.Create(
+            pool: Connection.ObjectPool,
+            subject: $"{_context.Opts.ApiPrefix}.CONSUMER.MSG.NEXT.{_stream}.{_consumer}",
+            replyTo: Subject,
+            headers: default,
+            value: _state.GetRequest(init: true),
+            serializer: JsonNatsSerializer.Default,
+            cancellationToken: default);
     }
 
     protected override async ValueTask ReceiveInternalAsync(
@@ -263,17 +279,31 @@ internal class NatsJSSubState
 
     public void IncrementTotalRequests() => Interlocked.Increment(ref _totalRequests);
 
-    public ConsumerGetnextRequest GetRequest()
+    public ConsumerGetnextRequest GetRequest(bool init = false)
     {
         _pullTerminated = false;
         _totalRequests++;
+
+        long batch;
+        long maxBytes;
+        if (init)
+        {
+            batch = _optsMaxBytes > 0 ? LargeMsgsBatchSize : _optsMaxMsgs;
+            maxBytes = _optsMaxBytes > 0 ? _optsMaxBytes : 0;
+        }
+        else
+        {
+            batch = _optsMaxBytes > 0 ? LargeMsgsBatchSize : _optsMaxMsgs - _pendingMsgs;
+            maxBytes = _optsMaxBytes > 0 ? _optsMaxBytes - _pendingBytes : 0;
+        }
+
         var request = new ConsumerGetnextRequest
         {
-            Batch = _optsMaxBytes > 0 ? LargeMsgsBatchSize : _optsMaxMsgs - _pendingMsgs,
-            MaxBytes = _optsMaxBytes > 0 ? _optsMaxBytes - _pendingBytes : 0,
+            Batch = batch,
+            MaxBytes = maxBytes,
             IdleHeartbeat = _optsIdleHeartbeatNanos,
             Expires = _optsExpiresNanos,
-            NoWait = true,
+            NoWait = false,
         };
 
         _pendingMsgs += request.Batch;
