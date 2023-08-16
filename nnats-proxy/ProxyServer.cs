@@ -3,8 +3,9 @@ using System.Net.Sockets;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
-#pragma warning disable CS4014
-public class Server
+namespace nnats_proxy;
+
+public class ProxyServer
 {
     public class AtomicBool
     {
@@ -105,7 +106,9 @@ public class Server
                     var pendingBytes = m1.Groups[2].Value;
                     js = $"[C] EXB pending msgs:{pendingMsgs} bytes:{pendingBytes}";
                 }
-                
+                // NATS/1.0 409 Server Shutdown\r\nNats-Pending-Messages: 500\r\nNats-Pending-Bytes: 0\r\n\r\n
+                    
+                //
                 else if ((m1 = Regex.Match(line, @"^PUB \$JS\.API\.CONSUMER\.MSG\.NEXT\.(\w+)\.(\w+)")).Success)
                 {
                     // PUB $JS.API.CONSUMER.MSG.NEXT.s1.c2 _INBOX.82YIGQ8W3TI0XNGETMHF03 77

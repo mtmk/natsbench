@@ -5,13 +5,15 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 
+namespace nnats_proxy;
+
 public class Program
 {
     static void Main()
     {
         var port1 = 4222;
         var port2 = 4333;
-        var help = (Func<Server, string>)(
+        var help = (Func<ProxyServer, string>)(
             s => $$"""
 
                    NATS Wire Protocol Analysing TCP Proxy
@@ -33,51 +35,20 @@ public class Program
                    """);
 
         Console.WriteLine($"NATS Simple Client Protocol Proxy");
-        Console.WriteLine($"Starting nats-server");
-        var started = new ManualResetEventSlim();
-        var natsServer = new Process
-        {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = "nats-server",
-                Arguments = $"-p {port2} -js",
-                RedirectStandardError = true,
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-            }
-        };
 
-        void DataReceived(object _, DataReceivedEventArgs e)
-        {
-            if (e.Data == null) return;
-            Console.WriteLine(e.Data);
-            if (e.Data.Contains("Server is ready"))
-                started.Set();
-        }
-
-        natsServer.OutputDataReceived += DataReceived;
-        natsServer.ErrorDataReceived += DataReceived;
-        natsServer.Start();
-        natsServer.BeginErrorReadLine();
-        natsServer.BeginOutputReadLine();
-        ChildProcessTracker.AddProcess(natsServer);
-
-        if (!started.Wait(5000))
-        {
-            Console.WriteLine("Error: Can't see nats-server started");
-            return;
-        }
+        // Start or use external!
+        // using var natsServer = new NatsServer().Start(port2);
 
         Console.WriteLine("Started nats-server");
 
-        var server = new Server();
+        var server = new ProxyServer();
 
         var started1 = new ManualResetEventSlim();
         var started2 = new ManualResetEventSlim();
-        Task.Run(() => RunServer(server, started1, IPAddress.Loopback, port1, port2));
+        Task.Run(() => RunProxyServer(server, started1, IPAddress.Loopback, port1, port2));
         if (Socket.OSSupportsIPv6)
         {
-            Task.Run(() => RunServer(server, started2, IPAddress.IPv6Loopback, port1, port2));
+            Task.Run(() => RunProxyServer(server, started2, IPAddress.IPv6Loopback, port1, port2));
             started2.Wait();
         }
         started1.Wait();
@@ -179,7 +150,7 @@ public class Program
 
     private static int _client = 0;
     
-    static void RunServer(Server server, ManualResetEventSlim started, IPAddress address, int proxyPort, int serverPort)
+    static void RunProxyServer(ProxyServer proxyServer, ManualResetEventSlim started, IPAddress address, int proxyPort, int serverPort)
     {
         var tcpListener = new TcpListener(address, proxyPort);
 
@@ -192,65 +163,73 @@ public class Program
         
         while (true)
         {
-            var clientTcpConnection = tcpListener.AcceptTcpClient();
+            try
+            {
+                var clientTcpConnection = tcpListener.AcceptTcpClient();
 
-            var n = Interlocked.Increment(ref _client);
-            server.NewClient(n, clientTcpConnection);
-            
-            SetupSocket(clientTcpConnection.Client);
+                var n = Interlocked.Increment(ref _client);
+                proxyServer.NewClient(n, clientTcpConnection);
 
-            var serverTcpConnection = new TcpClient("127.0.0.1", serverPort);
-            SetupSocket(serverTcpConnection.Client);
+                SetupSocket(clientTcpConnection.Client);
 
-            Console.WriteLine($"[{n}] Connected to {clientTcpConnection.Client.LocalEndPoint} -> {serverTcpConnection.Client.RemoteEndPoint}");
+                var serverTcpConnection = new TcpClient("127.0.0.1", serverPort);
+                SetupSocket(serverTcpConnection.Client);
+
+                Console.WriteLine(
+                    $"[{n}] Connected to {clientTcpConnection.Client.LocalEndPoint} -> {serverTcpConnection.Client.RemoteEndPoint}");
 
 #pragma warning disable CS4014
-            Task.Run(() =>
-            {
-                try
+                Task.Run(() =>
                 {
-                    var clientStream = clientTcpConnection.GetStream();
-                    var csr = new StreamReader(clientStream, Encoding.ASCII);
-                    var csw = new StreamWriter(clientStream, Encoding.ASCII);
-
-                    var serverStream = serverTcpConnection.GetStream();
-                    var ssr = new StreamReader(serverStream, Encoding.ASCII);
-                    var ssw = new StreamWriter(serverStream, Encoding.ASCII);
-
-                    Task.Run(() =>
+                    try
                     {
-                        try
+                        var clientStream = clientTcpConnection.GetStream();
+                        var csr = new StreamReader(clientStream, Encoding.ASCII);
+                        var csw = new StreamWriter(clientStream, Encoding.ASCII);
+
+                        var serverStream = serverTcpConnection.GetStream();
+                        var ssr = new StreamReader(serverStream, Encoding.ASCII);
+                        var ssw = new StreamWriter(serverStream, Encoding.ASCII);
+
+                        Task.Run(() =>
                         {
-                            // Client -> Server
-                            while (NatsProtoDump(server, $"[{n}] -->", csr, ssw))
+                            try
                             {
+                                // Client -> Server
+                                while (NatsProtoDump(proxyServer, $"[{n}] -->", csr, ssw))
+                                {
+                                }
+
+                                ssr.Close();
                             }
+                            catch (Exception e)
+                            {
+                                Console.WriteLine($"Writer task error: {e.Message}");
+                            }
+                        });
 
-                            ssr.Close();
-                        }
-                        catch (Exception e)
+                        // Server -> client
+                        while (NatsProtoDump(proxyServer, $"[{n}] <--", ssr, csw))
                         {
-                            Console.WriteLine($"[LOOP3] {e.GetType()}: {e.Message}");
                         }
-                    });
 
-                    // Server -> client
-                    while (NatsProtoDump(server, $"[{n}] <--", ssr, csw))
-                    {
+                        ssr.Close();
+                        csr.Close();
                     }
-
-                    ssr.Close();
-                    csr.Close();
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine($"[LOOP1] {e.GetType()}: {e.Message}");
-                }
-            });
+                    catch (Exception e)
+                    {
+                        Console.WriteLine($"Reader task error: {e.Message}");
+                    }
+                });
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Accept loop error: {e.Message}");
+            }
         }
     }
 
-    static bool NatsProtoDump(Server server, string dir, StreamReader sr, StreamWriter sw)
+    static bool NatsProtoDump(ProxyServer proxyServer, string dir, StreamReader sr, StreamWriter sw)
     {
         try
         {
@@ -259,7 +238,7 @@ public class Program
 
             if (Regex.IsMatch(line, @"^(INFO|CONNECT|PING|PONG|UNSUB|SUB|\+OK|-ERR)"))
             {
-                server.WriteCtrl(sw, dir, line);
+                proxyServer.WriteCtrl(sw, dir, line);
                 return true;
             }
 
@@ -305,7 +284,7 @@ public class Program
                     }
                 }
 
-                server.Write(sw, dir, line, buffer, ascii.ToString());
+                proxyServer.Write(sw, dir, line, buffer, ascii.ToString());
 
                 return true;
             }

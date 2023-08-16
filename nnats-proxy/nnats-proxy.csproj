@@ -5,7 +5,7 @@
         <TargetFramework>net6.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <RootNamespace>wiretap</RootNamespace>
+        <RootNamespace>nnats_proxy</RootNamespace>
         <LangVersion>11</LangVersion>
     </PropertyGroup>
     <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
