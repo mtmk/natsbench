@@ -13,6 +13,7 @@ internal enum NatsSubEndReason
     IdleTimeout,
     StartUpTimeout,
     Exception,
+    JetStreamComplete,
 }
 
 public abstract class NatsSubBase
@@ -203,6 +204,28 @@ public abstract class NatsSubBase
         yield return AsyncSubscribeCommand.Create(Connection.ObjectPool, Connection.GetCancellationTimer(default), sid, Subject, QueueGroup, PendingMsgs);
     }
 
+    internal void EndSubscription(NatsSubEndReason reason)
+    {
+        lock (this)
+        {
+            if (_endSubscription)
+                return;
+            _endSubscription = true;
+        }
+
+        Interlocked.Exchange(ref _endReasonRaw, (int)reason);
+
+        // Stops timers and completes channel writer to exit any message iterators
+        // synchronously, which is fine, however, we're not able to wait for
+        // UNSUB message to be sent to the server. If any message arrives after this point
+        // channel writer will ignore the message and we would effectively drop it.
+#pragma warning disable CA2012
+#pragma warning disable VSTHRD110
+        UnsubscribeAsync();
+#pragma warning restore VSTHRD110
+#pragma warning restore CA2012
+    }
+
     /// <summary>
     /// Invoked when a MSG or HMSG arrives for the subscription.
     /// <remarks>
@@ -247,26 +270,4 @@ public abstract class NatsSubBase
     /// Invoked to signal end of the subscription.
     /// </summary>
     protected abstract void TryComplete();
-
-    private void EndSubscription(NatsSubEndReason reason)
-    {
-        lock (this)
-        {
-            if (_endSubscription)
-                return;
-            _endSubscription = true;
-        }
-
-        Interlocked.Exchange(ref _endReasonRaw, (int)reason);
-
-        // Stops timers and completes channel writer to exit any message iterators
-        // synchronously, which is fine, however, we're not able to wait for
-        // UNSUB message to be sent to the server. If any message arrives after this point
-        // channel writer will ignore the message and we would effectively drop it.
-#pragma warning disable CA2012
-#pragma warning disable VSTHRD110
-        UnsubscribeAsync();
-#pragma warning restore VSTHRD110
-#pragma warning restore CA2012
-    }
 }

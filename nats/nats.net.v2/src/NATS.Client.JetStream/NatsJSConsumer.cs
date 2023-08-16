@@ -28,7 +28,7 @@ public class NatsJSConsumer
         return _deleted = await _context.DeleteConsumerAsync(_stream, _consumer, cancellationToken);
     }
 
-    public async ValueTask<INatsJSSubConsume<T>> ConsumeAsync<T>(
+    public async ValueTask<INatsJSSubConsume<T?>> ConsumeAsync<T>(
         NatsJSConsumeOpts opts,
         NatsSubOpts requestOpts = default,
         CancellationToken cancellationToken = default)
@@ -38,6 +38,7 @@ public class NatsJSConsumer
         var inbox = $"{_context.Opts.InboxPrefix}.{Guid.NewGuid():n}";
 
         var state = new NatsJSSubState(
+            preFetch: true,
             opts: _context.Opts,
             optsMaxBytes: opts.MaxBytes,
             optsMaxMsgs: opts.MaxMsgs,
@@ -46,7 +47,47 @@ public class NatsJSConsumer
             optsExpires: opts.Expires,
             optsIdleHeartbeat: opts.IdleHeartbeat);
 
-        var sub = new NatsJSSubConsume<T>(
+        var sub = new NatsJSSubConsume<T?>(
+            stream: _stream,
+            consumer: _consumer,
+            context: _context,
+            manager: _context.Nats.SubscriptionManager,
+            subject: inbox,
+            opts: requestOpts,
+            state: state,
+            serializer: requestOpts.Serializer ?? _context.Nats.Options.Serializer,
+            errorHandler: opts.ErrorHandler,
+            cancellationToken: cancellationToken);
+
+        await _context.Nats.SubAsync(
+            subject: inbox,
+            opts: requestOpts,
+            sub: sub,
+            cancellationToken);
+
+        return sub;
+    }
+
+    public async ValueTask<INatsJSSubConsume<T?>> FetchAsync<T>(
+        NatsJSFetchOpts opts,
+        NatsSubOpts requestOpts = default,
+        CancellationToken cancellationToken = default)
+    {
+        ThrowIfDeleted();
+
+        var inbox = $"{_context.Opts.InboxPrefix}.{Guid.NewGuid():n}";
+
+        requestOpts = requestOpts with { MaxMsgs = opts.MaxMsgs };
+
+        var state = new NatsJSSubState(
+            preFetch: false,
+            opts: _context.Opts,
+            optsMaxBytes: opts.MaxBytes,
+            optsMaxMsgs: opts.MaxMsgs,
+            optsExpires: opts.Expires,
+            optsIdleHeartbeat: opts.IdleHeartbeat);
+
+        var sub = new NatsJSSubFetch<T?>(
             stream: _stream,
             consumer: _consumer,
             context: _context,
@@ -69,19 +110,18 @@ public class NatsJSConsumer
 
     public async ValueTask<NatsJSMsg<T?>> NextAsync<T>(CancellationToken cancellationToken = default)
     {
-        await foreach (var natsJSMsg in FetchAsync<T>(new NatsJSFetchOpts { MaxMsgs = 1 }, cancellationToken: cancellationToken))
+        await using var cf = await FetchAsync<T>(new NatsJSFetchOpts { MaxMsgs = 1 }, cancellationToken: cancellationToken);
+
+        while (await cf.Msgs.WaitToReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            return natsJSMsg;
+            while (cf.Msgs.TryRead(out var msg))
+            {
+                return msg;
+            }
         }
 
         throw new NatsJSException("No data");
     }
-
-    public IAsyncEnumerable<NatsJSMsg<T?>> FetchAsync<T>(
-        NatsJSFetchOpts opts,
-        NatsSubOpts? requestOpts = default,
-        CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException();
 
     private void ThrowIfDeleted()
     {

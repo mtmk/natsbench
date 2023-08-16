@@ -193,12 +193,17 @@ internal abstract class NatsJSSubBase<T> : NatsSubBase
 
                 _state.MsgReceived(msg.Size);
 
-                if (_state.CanFetch())
+                await ReceivedUserMsg(msg).ConfigureAwait(false);
+
+                if (_state.IsCompleted)
+                {
+                    EndSubscription(NatsSubEndReason.JetStreamComplete);
+                }
+                
+                if (_state.PreFetch && _state.CanFetch())
                 {
                     await CallMsgNextAsync(_state.GetRequest());
                 }
-
-                await ReceivedUserMsg(msg).ConfigureAwait(false);
 
                 DecrementMaxMsgs();
             }
@@ -241,6 +246,7 @@ internal abstract class NatsJSSubBase<T> : NatsSubBase
 
 internal class NatsJSSubState
 {
+    public bool PreFetch { get; }
     private const int LargeMsgsBatchSize = 1_000_000;
 
     private readonly long _optsMaxBytes;
@@ -256,6 +262,7 @@ internal class NatsJSSubState
     private bool _pull;
 
     public NatsJSSubState(
+        bool preFetch = true,
         NatsJSOpts? opts = default,
         long? optsMaxBytes = default,
         long? optsMaxMsgs = default,
@@ -264,6 +271,7 @@ internal class NatsJSSubState
         TimeSpan? optsIdleHeartbeat = default,
         TimeSpan? optsExpires = default)
     {
+        PreFetch = preFetch;
         var m = NatsJSOpsDefaults.SetMax(opts, optsMaxMsgs, optsMaxBytes, optsThresholdMsgs, optsThresholdBytes);
         var t = NatsJSOpsDefaults.SetTimeouts(optsExpires, optsIdleHeartbeat);
 
@@ -274,13 +282,40 @@ internal class NatsJSSubState
         _optsIdleHeartbeatNanos = t.IdleHeartbeat.ToNanos();
         _optsExpiresNanos = t.Expires.ToNanos();
         HearthBeatTimeout = t.IdleHeartbeat * 2;
+
+        if (!PreFetch)
+        {
+            _pendingMsgs = _optsMaxMsgs;
+            _pendingBytes = _optsMaxBytes;
+        }
     }
 
     public TimeSpan HearthBeatTimeout { get; }
 
-    public void ReceivedPendingMsgs(long pendingMsgs) => _pendingMsgs -= pendingMsgs;
+    public bool IsCompleted
+    {
+        get
+        {
+            if (_optsMaxBytes > 0)
+            {
+                return _pendingBytes <= 0;
+            }
 
-    public void ReceivedPendingBytes(long pendingBytes) => _pendingBytes -= pendingBytes;
+            return _pendingMsgs <= 0;
+        }
+    }
+
+    public void ReceivedPendingMsgs(long pendingMsgs)
+    {
+        if (PreFetch)
+            _pendingMsgs -= pendingMsgs;
+    }
+
+    public void ReceivedPendingBytes(long pendingBytes)
+    {
+        if (PreFetch)
+            _pendingBytes -= pendingBytes;
+    }
 
     public void MarkForPull() => _pull = true;
 
@@ -288,7 +323,7 @@ internal class NatsJSSubState
 
     public ConsumerGetnextRequest GetRequest(bool init = false)
     {
-        if (init)
+        if (init && PreFetch)
         {
             _pendingBytes = 0;
             _pendingMsgs = 0;
@@ -300,15 +335,23 @@ internal class NatsJSSubState
 
         long batch;
         long maxBytes;
-        if (init)
+        if (PreFetch)
         {
-            batch = _optsMaxBytes > 0 ? LargeMsgsBatchSize : _optsMaxMsgs;
-            maxBytes = _optsMaxBytes > 0 ? _optsMaxBytes : 0;
+            if (init)
+            {
+                batch = _optsMaxBytes > 0 ? LargeMsgsBatchSize : _optsMaxMsgs;
+                maxBytes = _optsMaxBytes > 0 ? _optsMaxBytes : 0;
+            }
+            else
+            {
+                batch = _optsMaxBytes > 0 ? LargeMsgsBatchSize : _optsMaxMsgs - _pendingMsgs;
+                maxBytes = _optsMaxBytes > 0 ? _optsMaxBytes - _pendingBytes : 0;
+            }
         }
         else
         {
-            batch = _optsMaxBytes > 0 ? LargeMsgsBatchSize : _optsMaxMsgs - _pendingMsgs;
-            maxBytes = _optsMaxBytes > 0 ? _optsMaxBytes - _pendingBytes : 0;
+            batch = _optsMaxBytes > 0 ? LargeMsgsBatchSize : _pendingMsgs;
+            maxBytes = _optsMaxBytes > 0 ? _pendingBytes : 0;
         }
 
         var request = new ConsumerGetnextRequest
@@ -320,8 +363,11 @@ internal class NatsJSSubState
             NoWait = false,
         };
 
-        _pendingMsgs += request.Batch;
-        _pendingBytes += request.MaxBytes;
+        if (PreFetch)
+        {
+            _pendingMsgs += request.Batch;
+            _pendingBytes += request.MaxBytes;
+        }
 
         return request;
     }

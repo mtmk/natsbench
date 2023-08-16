@@ -24,7 +24,7 @@ public record NatsJSOpts
 public record NatsJSConsumeOpts
 {
     /// <summary>
-    /// Maximum number of messages stored in the buffer
+    /// Handler for notifications sent from NATS server.
     /// </summary>
     public Action<NatsJSNotification>? ErrorHandler { get; init; }
 
@@ -74,6 +74,11 @@ public record NatsJSNextOpts
 
 public record NatsJSFetchOpts
 {
+    /// <summary>
+    /// Handler for notifications sent from NATS server.
+    /// </summary>
+    public Action<NatsJSNotification>? ErrorHandler { get; init; }
+
     /// <summary>
     /// Maximum number of messages to return
     /// </summary>
