@@ -2676,6 +2676,8 @@ var (
 
 // Adds in a new request.
 func (wq *waitQueue) add(wr *waitingRequest) error {
+	fmt.Println("### Add waiting request", "expires:", wr.expires)
+
 	if wq == nil {
 		return errWaitQueueNil
 	}
@@ -2726,6 +2728,7 @@ func (wq *waitQueue) peek() *waitingRequest {
 // pop will return the next request and move the read cursor.
 // This will now place a request that still has pending items at the ends of the list.
 func (wq *waitQueue) pop() *waitingRequest {
+
 	wr := wq.peek()
 	if wr != nil {
 		wr.d++

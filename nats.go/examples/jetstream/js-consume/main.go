@@ -54,7 +54,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	go endlessPublish(ctx, nc, js)
+	//go endlessPublish(ctx, nc, js)
 
 	cc, err := cons.Consume(func(msg jetstream.Msg) {
 		fmt.Println(string(msg.Data()))
