@@ -1,3 +1,18 @@
-﻿// See https://aka.ms/new-console-template for more information
+﻿using NATS.Client.Core;
+using NATS.Client.JetStream;
 
-Console.WriteLine("Hello, World!");
+await using var nats = new NatsConnection();
+var js = new NatsJSContext(nats);
+
+var consumer = await js.GetConsumerAsync("s1", "c2");
+
+var cc = await consumer.ConsumeAsync<int>(new NatsJSConsumeOpts
+{
+    
+});
+
+await foreach (var msg in cc.Msgs.ReadAllAsync())
+{
+    Console.WriteLine($"{msg.Msg.Subject}: {msg.Msg.Data}");
+    await msg.Ack();
+}

@@ -7,4 +7,8 @@
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\nats\nats.net.v2\src\NATS.Client.JetStream\NATS.Client.JetStream.csproj" />
+    </ItemGroup>
+
 </Project>
