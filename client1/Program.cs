@@ -2,13 +2,14 @@
 using System.Diagnostics;
 using System.Diagnostics.Tracing;
 using System.Text.RegularExpressions;
-using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace client1;
 
 public class Program
 {
+    private static int consumerInboxIndex;
     static void Main(string[] args)
     {
         if (args.Length > 0 && args[0] == "bench1")
@@ -155,6 +156,72 @@ public class Program
                 Println($"Unsubscribe from {sid}");
                 natsClient.UnSub(sid, max);
             }
+            else if (cmd.StartsWith("con"))
+            {
+                var match = Regex.Match(cmd, @"^con\s+(\S+)(?:\s+(\S+))?$");
+                if (!match.Success) continue;
+                var stream = match.Groups[1].Value;
+                var consumer = match.Groups[2].Value;
+                Println($"Consuming from {stream}:{consumer}");
+
+                int sid = -1;
+                try
+                {
+                    var inbox = $"_INBOX.{Interlocked.Increment(ref consumerInboxIndex)}";
+                    sid = natsClient.Sub(inbox, "", m =>
+                    {
+                        if (display)
+                        {
+                            Println($"\nMESSAGE: {m}");
+                        }
+                    });
+
+                    var help = $$"""
+                                    Consumer Mode {{ stream }}.{{ consumer }}
+
+                                    n <batch>  Pull next batch
+                                    q          quit
+
+                                    """;
+                    Println(message: help);
+                    while (true)
+                    {
+                        Print($"{stream}.{consumer}> ");
+                        var line = (Console.ReadLine() ?? throw null).Trim();
+
+                        if (line == "q") break;
+
+                        Match m;
+                        if ((m = Regex.Match(line, @"^\s*n\s*(\d+)\s*$")).Success)
+                        {
+                            // PUB $JS.API.CONSUMER.MSG.NEXT.s1.c2 _INBOX.143fbf756e154686967be929fa26cc55 63
+                            // {"expires":30000000000,"batch":10,"idle_heartbeat":15000000000}
+                            var batch = int.Parse(m.Groups[1].Value);
+                            var api = $"$JS.API.CONSUMER.MSG.NEXT.{stream}.{consumer}";
+                            var payload = $$"""
+                                            {"batch":{{batch}},"expires":30000000000,"idle_heartbeat":15000000000}
+                                            """;
+                            if (batch <= 1)
+                                payload = "";
+                            
+                            natsClient.Pub(subject: api, replyTo: inbox, payload: payload);
+                        }
+                        else if (line == "h")
+                        {
+                            Println(message: help);
+                        }
+                        else
+                        {
+                            Println("Unknown consumer command.");
+                        }
+                    }
+                }
+                finally
+                {
+                    if (sid > 0)
+                        natsClient.UnSub(sid, default);
+                }
+            }
             else
             {
                 Println("Unknown command");
@@ -204,40 +271,5 @@ public class Program
             Console.WriteLine($"GEN1:{r.GcStats.Gen1Collections}");
             Console.WriteLine($"GEN2:{r.GcStats.Gen2Collections}");
         }
-    }
-}
-
-[MemoryDiagnoser]
-public class NatsBench
-{ 
-    private NatsClient _nats;
-    private ManualResetEventSlim _signal;
-    private int _count;
-    private string _message;
-
-    [GlobalSetup]
-    public void Setup()
-    {
-        _nats = NatsClient.Connect();
-        _signal = new ManualResetEventSlim();
-
-        _count = 0;
-        
-        _nats.Sub("foo", "", m =>
-        {
-            Interlocked.Increment(ref _count);
-            _signal.Set();
-        });
-
-        _message = "my_message";
-    }
-    
-    [Benchmark]
-    public int PubSub()
-    {
-        _nats.Pub("foo", "", _message);
-        _signal.Wait();
-        _signal.Reset();
-        return Volatile.Read(ref _count);
     }
 }
