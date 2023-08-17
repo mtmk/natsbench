@@ -1,6 +1,8 @@
-# natsbench
-## core
+# NATS Bench
+
+## Core
 https://docs.nats.io/reference/reference-protocols/nats-protocol
+
 ```
 S: INFO {"option_name":option_value,...}␍␊
 C: CONNECT {"option_name":option_value,...}␍␊
@@ -17,6 +19,7 @@ S: -ERR <error message>␍␊
 ```
 
 ## JetStream
+https://docs.nats.io/reference/reference-protocols/nats_api_reference
 
 ### Account Info
 ```
@@ -26,15 +29,13 @@ S: MSG _INBOX.<id> <sid> <#bytes>
    {"type":"io.nats.jetstream.api.v1.account_info_response",...}
 ```
 
-### Manage
+### Stream Create
 ```
-SUB: $JS.API.STREAM.CREATE.{stream}
-REQ: jetstream/api/v1/stream_create_request
-RES: jetstream/api/v1/stream_create_response
-
-SUB: LIST
-SUB: GET
-SUB: DELETE
+C: SUB _INBOX.<id> <sid>
+C: PUB $JS.API.STREAM.CREATE.<stream> _INBOX.<id> <#bytes>
+   {"name":"s2","subjects":["foo.*"],"retention":"limits",...}
+S: MSG _INBOX.<id> <sid> <#bytes>
+   {"type":"io.nats.jetstream.api.v1.stream_create_response",...}
 ```
 
 ### Pull Next
