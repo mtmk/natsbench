@@ -5,7 +5,7 @@ https://docs.nats.io/reference/reference-protocols/nats-protocol
 S: INFO {"option_name":option_value,...}␍␊
 C: CONNECT {"option_name":option_value,...}␍␊
 C: PUB <subject> [reply-to] <#bytes>␍␊[payload]␍␊
-C: HPUB <subject> [reply-to] <#header bytes> <#total-bytes>␍␊[headers]␍␊␍␊[payload]␍␊
+C: HPUB <subject> [reply-to] <#header-bytes> <#total-bytes>␍␊[headers]␍␊␍␊[payload]␍␊
 C: SUB <subject> [queue group] <sid>␍␊
 C: UNSUB <sid> [max_msgs]␍␊
 S: MSG <subject> <sid> [reply-to] <#bytes>␍␊[payload]␍␊
@@ -17,6 +17,14 @@ S: -ERR <error message>␍␊
 ```
 
 ## JetStream
+
+### Account Info
+```
+C: SUB _INBOX.<id> <sid>
+C: PUB $JS.API.INFO _INBOX.<id> 0
+S: MSG _INBOX.<id> <sid> <#bytes>
+   {"type":"io.nats.jetstream.api.v1.account_info_response",...}
+```
 
 ### Manage
 ```
