@@ -40,7 +40,10 @@ S: MSG _INBOX.<id> <sid> <#bytes>
 
 ### Pull Next
 ```
-C: SUB _INBOX.<id> <sid>␍␊
-C: PUB $JS.API.CONSUMER.MSG.NEXT.<stream>.<consumer> _INBOX.<id> 0␍␊
-S: MSG <stream-subject> <sid> $JS.ACK.<stream>.<consumer>.3.1.3.1692271055168144700.0 <#bytes>␍␊[payload]␍␊
+C: SUB _INBOX.<id> <sid>
+C: PUB $JS.API.CONSUMER.MSG.NEXT.<stream>.<consumer> _INBOX.<id> 0
+S: MSG <stream-subject> <sid> $JS.ACK.<stream>.<consumer>.<delivered-count>.<stream-sequence>.<consumer-sequence>.<timestamp>.<pending-messages> <#bytes>
+   [payload]
+C: PUB $JS.ACK.<stream>.<consumer>.<delivered-count>.<stream-sequence>.<consumer-sequence>.<timestamp>.<pending-messages> 4
+   +ACK
 ```
