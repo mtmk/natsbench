@@ -168,11 +168,17 @@ public class Program
                 try
                 {
                     var inbox = $"_INBOX.{Interlocked.Increment(ref consumerInboxIndex)}";
+                    AtomicBool doAck = new(true);
                     sid = natsClient.Sub(inbox, "", m =>
                     {
                         if (display)
                         {
                             Println($"\nMESSAGE: {m}");
+                        }
+
+                        if (doAck && !string.IsNullOrEmpty(m.ReplyTo))
+                        {
+                            natsClient.Pub(m.ReplyTo, "", "+ACK");
                         }
                     });
 
@@ -180,8 +186,11 @@ public class Program
                                     Consumer Mode {{ stream }}.{{ consumer }}
 
                                     n <batch>  Pull next batch
+                                    ack        Toggle ack
                                     q          quit
 
+                                    ack: {{ doAck }}
+                                    
                                     """;
                     Println(message: help);
                     while (true)
@@ -272,4 +281,29 @@ public class Program
             Console.WriteLine($"GEN2:{r.GcStats.Gen2Collections}");
         }
     }
+}
+
+public class AtomicBool
+{
+    private int _i;
+
+    public AtomicBool(bool value) => _i = value ? 1 : 0;
+
+    public void Set() => Interlocked.Exchange(ref _i, 1);
+        
+    public void Reset() => Interlocked.Exchange(ref _i, 0);
+
+    public void Toggle()
+    {
+        if (True) Reset();
+        else Set();
+    }
+
+    public bool True => Volatile.Read(ref _i) == 1;
+        
+    public static implicit operator bool(AtomicBool d) => d.True;
+        
+    public static explicit operator AtomicBool(bool b) => new(b);
+
+    public override string ToString() => True ? "ON" : "OFF";
 }
