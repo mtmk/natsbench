@@ -40,15 +40,15 @@ func main() {
 		log.Fatal(err)
 	}
 	s, err := js.CreateStream(ctx, jetstream.StreamConfig{
-		Name:     "TEST_STREAM",
-		Subjects: []string{"FOO.*"},
+		Name:     "s1",
+		Subjects: []string{"s1.*"},
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	cons, err := s.CreateOrUpdateConsumer(ctx, jetstream.ConsumerConfig{
-		Durable:   "TestConsumerConsume",
+		Durable:   "c1",
 		AckPolicy: jetstream.AckExplicitPolicy,
 	})
 	if err != nil {
