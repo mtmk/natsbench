@@ -231,7 +231,7 @@ public class ProxyServer
     public void WriteCtrl(TextWriter sw, string dir, string line)
     {
         // Ignore control messages
-        if (DisplayCtrl && !Regex.IsMatch(line, @"^(INFO|CONNECT|PING|PONG|\+OK)"))
+        if (DisplayCtrl || !Regex.IsMatch(line, @"^(INFO|CONNECT|PING|PONG|\+OK)"))
         {
             Console.WriteLine($"{dir} {line}");
         }
