@@ -195,9 +195,9 @@ public class Program
                     var help = $$"""
                                     Consumer Mode {{ stream }}.{{ consumer }}
 
-                                    n<batch> <expire> <hb>  Pull next batch
-                                    ack                     Toggle ack
-                                    q                       quit
+                                    n<batch> <bytes> <expire> <hb>  Pull next batch
+                                    ack                             Toggle ack
+                                    q                               quit
 
                                     ack: {{ doAck }}
                                     
@@ -212,19 +212,21 @@ public class Program
                         if (line == "") continue;
 
                         Match m;
-                        if ((m = Regex.Match(line, @"^\s*n\s*(\d+)(?:\s+(\d+)\s+(\d+))?\s*$")).Success)
+                        if ((m = Regex.Match(line, @"^\s*n\s*(\d+)(?:\s+(\d+)\s+(\d+)\s+(\d+))?\s*$")).Success)
                         {
                             // PUB $JS.API.CONSUMER.MSG.NEXT.s1.c2 _INBOX.143fbf756e154686967be929fa26cc55 63
                             // {"expires":30000000000,"batch":10,"idle_heartbeat":15000000000}
                             var batch = int.Parse(m.Groups[1].Value);
-                            var expire = int.Parse(m.Groups[2].Value);
-                            var hb = int.Parse(m.Groups[3].Value);
+                            var bytes = int.Parse(m.Groups[2].Value);
+                            var expire = int.Parse(m.Groups[3].Value);
+                            var hb = int.Parse(m.Groups[4].Value);
                             var api = $"$JS.API.CONSUMER.MSG.NEXT.{stream}.{consumer}";
                             var payload =
                                 batch <= 1
                                     ? ""
                                     : $$"""
                                         {"batch":{{batch}},
+                                         "max_bytes":{{bytes}},
                                          "expires":{{expire}}000000000,
                                          "idle_heartbeat":{{hb}}000000000}
                                         """;
