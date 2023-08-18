@@ -745,6 +745,8 @@ func (mset *stream) addConsumerWithAssignment(config *ConsumerConfig, oname stri
 			config.Name = o.name
 		}
 	}
+	fmt.Println("### NEW consumer", o.name)
+
 	// Create ackMsgs queue now that we have a consumer name
 	o.ackMsgs = newIPQueue[*jsAckMsg](s, fmt.Sprintf("[ACC:%s] consumer '%s' on stream '%s' ackMsgs", accName, o.name, mset.cfg.Name))
 
@@ -2695,6 +2697,9 @@ func (wq *waitQueue) add(wr *waitingRequest) error {
 	// Track last active via when we receive a request.
 	wq.last = wr.received
 	wq.n++
+
+	fmt.Println("### waitQueue.add()", wq.n)
+
 	return nil
 }
 
@@ -2728,6 +2733,7 @@ func (wq *waitQueue) peek() *waitingRequest {
 // pop will return the next request and move the read cursor.
 // This will now place a request that still has pending items at the ends of the list.
 func (wq *waitQueue) pop() *waitingRequest {
+	fmt.Println("### waitQueue.pop()")
 
 	wr := wq.peek()
 	if wr != nil {
@@ -2758,6 +2764,8 @@ func (wq *waitQueue) removeCurrent() {
 	if wq.n == 0 {
 		wq.rp, wq.wp = -1, 0
 	}
+	fmt.Println("### waitQueue.removeCurrent()", wq.n)
+	fmt.Println("-----------------------------------")
 }
 
 // Will compact when we have interior deletes.
@@ -2838,6 +2846,7 @@ func (o *consumer) nextWaiting(sz int) *waitingRequest {
 				return o.waiting.pop()
 			}
 		} else {
+			fmt.Println("### nextWaiting() ... 408 Request Timeout")
 			// We do check for expiration in `processWaiting`, but it is possible to hit the expiry here, and not there.
 			hdr := []byte(fmt.Sprintf("NATS/1.0 408 Request Timeout\r\n%s: %d\r\n%s: %d\r\n\r\n", JSPullRequestPendingMsgs, wr.n, JSPullRequestPendingBytes, wr.b))
 			o.outq.send(newJSPubMsg(wr.reply, _EMPTY_, _EMPTY_, hdr, nil, nil, 0))
@@ -2915,6 +2924,9 @@ func (o *consumer) processNextMsgReq(_ *subscription, c *client, _ *Account, _, 
 }
 
 func (o *consumer) processNextMsgRequest(reply string, msg []byte) {
+	fmt.Println("________________________________________________________")
+	fmt.Println("### processNextMsgRequest() - Start pull request", o.name)
+
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
@@ -2936,7 +2948,7 @@ func (o *consumer) processNextMsgRequest(reply string, msg []byte) {
 	// Check payload here to see if they sent in batch size or a formal request.
 	expires, batchSize, maxBytes, noWait, hb, hbt, err := nextReqFromMsg(msg)
 
-	fmt.Println("### Request expires:", expires.Second(), "batch:", batchSize)
+	fmt.Println("### Request expires:", expires.Second(), "batch:", batchSize, "bytes:", maxBytes, "nowait:", noWait)
 
 	if err != nil {
 		sendErr(400, fmt.Sprintf("Bad Request - %v", err))
@@ -3085,6 +3097,8 @@ var (
 // Is partition aware and redeliver aware.
 // Lock should be held.
 func (o *consumer) getNextMsg() (*jsPubMsg, uint64, error) {
+	// XXX fmt.Println("### getNextMsg()")
+
 	if o.mset == nil || o.mset.store == nil {
 		return nil, 0, errBadConsumer
 	}
@@ -3162,6 +3176,8 @@ func (o *consumer) getNextMsg() (*jsPubMsg, uint64, error) {
 // Will check for expiration and lack of interest on waiting requests.
 // Will also do any heartbeats and return the next expiration or HB interval.
 func (o *consumer) processWaiting(eos bool) (int, int, int, time.Time) {
+	// XXX fmt.Println("### processWaiting()")
+
 	var fexp time.Time
 	if o.srv == nil || o.waiting.isEmpty() {
 		return 0, 0, 0, fexp
@@ -3191,6 +3207,8 @@ func (o *consumer) processWaiting(eos bool) (int, int, int, time.Time) {
 		wr := wq.reqs[rp]
 		// Check expiration.
 		if (eos && wr.noWait && wr.d > 0) || (!wr.expires.IsZero() && now.After(wr.expires)) {
+			fmt.Println("### processWaiting() ... 408 Request Timeout", o.name)
+
 			hdr := []byte(fmt.Sprintf("NATS/1.0 408 Request Timeout\r\n%s: %d\r\n%s: %d\r\n\r\n", JSPullRequestPendingMsgs, wr.n, JSPullRequestPendingBytes, wr.b))
 			o.outq.send(newJSPubMsg(wr.reply, _EMPTY_, _EMPTY_, hdr, nil, nil, 0))
 			remove(wr, rp)
@@ -3390,6 +3408,8 @@ func (o *consumer) processInboundAcks(qch chan struct{}) {
 
 // Process inbound next message requests.
 func (o *consumer) processInboundNextMsgReqs(qch chan struct{}) {
+	// fmt.Println("### processInboundNextMsgReqs()")
+
 	// Grab the server lock to watch for server quit.
 	o.mu.RLock()
 	s := o.srv
@@ -3431,6 +3451,7 @@ func (o *consumer) suppressDeletion() {
 }
 
 func (o *consumer) loopAndGatherMsgs(qch chan struct{}) {
+	// fmt.Println("### loopAndGatherMsgs()")
 	// On startup check to see if we are in a a reply situation where replay policy is not instant.
 	var (
 		lts  int64 // last time stamp seen, used for replay.
@@ -3504,6 +3525,8 @@ func (o *consumer) loopAndGatherMsgs(qch chan struct{}) {
 		}
 
 		// Grab our next msg.
+		// XXX fmt.Println("### loopAndGatherMsgs() ... o.getNextMsg()")
+
 		pmsg, dc, err = o.getNextMsg()
 
 		// On error either wait or return.
@@ -3538,14 +3561,20 @@ func (o *consumer) loopAndGatherMsgs(qch chan struct{}) {
 
 		if o.isPushMode() {
 			dsubj = o.dsubj
+			fmt.Println("### loopAndGatherMsgs() CHK1: isPushMode")
 		} else if wr := o.nextWaiting(sz); wr != nil {
+			fmt.Println("### loopAndGatherMsgs() CHK1: nextWaiting")
 			dsubj = wr.reply
 			if done := wr.recycleIfDone(); done && o.node != nil {
+				fmt.Println("### loopAndGatherMsgs() CHK1:... o.removeClusterPendingRequest()")
+
 				o.removeClusterPendingRequest(dsubj)
 			} else if !done && wr.hb > 0 {
+				fmt.Println("### loopAndGatherMsgs() CHK1:... time.Now().Add(wr.hb)")
 				wr.hbt = time.Now().Add(wr.hb)
 			}
 		} else {
+			fmt.Println("### loopAndGatherMsgs() CHK1: else")
 			// We will redo this one.
 			o.sseq--
 			if dc == 1 {
@@ -3651,6 +3680,7 @@ func (o *consumer) loopAndGatherMsgs(qch chan struct{}) {
 
 // Lock should be held.
 func (o *consumer) sendIdleHeartbeat(subj string) {
+	fmt.Println("💓", o.name, o.waiting.n)
 	const t = "NATS/1.0 100 Idle Heartbeat\r\n%s: %d\r\n%s: %d\r\n\r\n"
 	sseq, dseq := o.sseq-1, o.dseq-1
 	hdr := []byte(fmt.Sprintf(t, JSLastConsumerSeq, dseq, JSLastStreamSeq, sseq))
@@ -3681,6 +3711,7 @@ func (o *consumer) setMaxPendingBytes(limit int) {
 // This does some quick sanity checks to see if we should re-calculate num pending.
 // Lock should be held.
 func (o *consumer) checkNumPending() uint64 {
+	// XXX fmt.Println("### checkNumPending()")
 	if o.mset != nil {
 		var state StreamState
 		o.mset.store.FastState(&state)
@@ -3726,6 +3757,8 @@ func (o *consumer) streamNumPendingLocked() uint64 {
 // Depends on delivery policy, for last per subject we calculate differently.
 // Lock should be held.
 func (o *consumer) streamNumPending() uint64 {
+	// fmt.Println("### streamNumPending()")
+
 	if o.mset == nil || o.mset.store == nil {
 		o.npc, o.npf = 0, 0
 	} else {
@@ -3767,6 +3800,8 @@ func convertToHeadersOnly(pmsg *jsPubMsg) {
 // Deliver a msg to the consumer.
 // Lock should be held and o.mset validated to be non-nil.
 func (o *consumer) deliverMsg(dsubj, ackReply string, pmsg *jsPubMsg, dc uint64, rp RetentionPolicy) {
+	fmt.Println("### deliverMsg()")
+
 	if o.mset == nil {
 		pmsg.returnToPool()
 		return
@@ -3837,6 +3872,8 @@ func (o *consumer) needFlowControl(sz int) bool {
 }
 
 func (o *consumer) processFlowControl(_ *subscription, c *client, _ *Account, subj, _ string, _ []byte) {
+	fmt.Println("### processFlowControl()")
+
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
@@ -3884,6 +3921,8 @@ func (o *consumer) fcReply() string {
 // sendFlowControl will send a flow control packet to the consumer.
 // Lock should be held.
 func (o *consumer) sendFlowControl() {
+	fmt.Println("### sendFlowControl()")
+
 	if !o.isPushMode() {
 		return
 	}
@@ -3896,6 +3935,7 @@ func (o *consumer) sendFlowControl() {
 // Tracks our outstanding pending acks. Only applicable to AckExplicit mode.
 // Lock should be held.
 func (o *consumer) trackPending(sseq, dseq uint64) {
+	fmt.Println("### trackPending()")
 	if o.pending == nil {
 		o.pending = make(map[uint64]*Pending)
 	}
@@ -4434,6 +4474,7 @@ func (o *consumer) deleteWithoutAdvisory() error {
 
 // Delete will delete the consumer for the associated stream and send advisories.
 func (o *consumer) delete() error {
+	fmt.Println("### DELETE consumer", o.name)
 	return o.stopWithFlags(true, false, true, true)
 }
 
