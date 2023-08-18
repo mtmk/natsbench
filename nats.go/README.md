@@ -1,3 +1,5 @@
+# This is a copy of NATS - Go Client for experimentation. if you want to use NATS go to https://nats.io
+
 # NATS - Go Client
 A [Go](http://golang.org) client for the [NATS messaging system](https://nats.io).
 

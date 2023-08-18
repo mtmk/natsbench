@@ -1,3 +1,5 @@
+# This is a copy of nats-server for experimentation. if you want to use NATS go to https://nats.io
+
 <p align="center">
   <img src="logos/nats-horizontal-color.png" width="300" alt="NATS Logo">
 </p>
