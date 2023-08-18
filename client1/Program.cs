@@ -1,6 +1,7 @@
 ﻿using System.Buffers;
 using System.Diagnostics;
 using System.Diagnostics.Tracing;
+using System.Text;
 using System.Text.RegularExpressions;
 using BenchmarkDotNet.Running;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -12,6 +13,8 @@ public class Program
     private static int consumerInboxIndex;
     static void Main(string[] args)
     {
+        Console.OutputEncoding = Encoding.UTF8;
+        
         if (args.Length > 0 && args[0] == "bench1")
         {
             Bench1(args.Skip(1).ToArray());
@@ -173,7 +176,14 @@ public class Program
                     {
                         if (display)
                         {
-                            Println($"\nMESSAGE: {m}");
+                            if (m.Subject == inbox)
+                            {
+                                Println(m.DumpHeadersParsed());
+                            }
+                            else
+                            {
+                                Println($"📨 {m.Payload}");
+                            }
                         }
 
                         if (doAck && !string.IsNullOrEmpty(m.ReplyTo))
@@ -199,6 +209,7 @@ public class Program
                         var line = (Console.ReadLine() ?? throw null).Trim();
 
                         if (line == "q") break;
+                        if (line == "") continue;
 
                         Match m;
                         if ((m = Regex.Match(line, @"^\s*n\s*(\d+)(?:\s+(\d+)\s+(\d+))?\s*$")).Success)
@@ -209,11 +220,14 @@ public class Program
                             var expire = int.Parse(m.Groups[2].Value);
                             var hb = int.Parse(m.Groups[3].Value);
                             var api = $"$JS.API.CONSUMER.MSG.NEXT.{stream}.{consumer}";
-                            var payload = $$"""
-                                            {"batch":{{batch}},"expires":{{expire}}000000000,"idle_heartbeat":{{hb}}000000000}
-                                            """;
-                            if (batch <= 1)
-                                payload = "";
+                            var payload =
+                                batch <= 1
+                                    ? ""
+                                    : $$"""
+                                        {"batch":{{batch}},
+                                         "expires":{{expire}}000000000,
+                                         "idle_heartbeat":{{hb}}000000000}
+                                        """;
                             
                             natsClient.Pub(subject: api, replyTo: inbox, payload: payload);
                         }
