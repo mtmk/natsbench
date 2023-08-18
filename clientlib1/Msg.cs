@@ -91,9 +91,25 @@ public record struct Msg
             return $"💓 last stream:{lastStream} consumer:{lastConsumer}";
         }
 
-        if (code == 408 && tag == "Request Timeout")
+        if (code == 408)
         {
-            return $"❌ pending msgs:{pendingMsgs} bytes:{pendingBytes}";
+            if (tag == "Request Timeout")
+            {
+                return $"♻️ pending msgs:{pendingMsgs} bytes:{pendingBytes}";
+            }
+        }
+
+        if (code == 409)
+        {
+            if (tag == "Consumer is push based")
+            {
+                return $"❌ Consumer is push based";
+            }
+
+            if (tag == "Consumer Deleted")
+            {
+                return $"❌ Consumer Deleted";
+            }
         }
 
         return DumpHeaders();
