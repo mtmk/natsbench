@@ -168,7 +168,7 @@ public class Program
                 try
                 {
                     var inbox = $"_INBOX.{Interlocked.Increment(ref consumerInboxIndex)}";
-                    AtomicBool doAck = new(true);
+                    var doAck = (AtomicBool)true;
                     sid = natsClient.Sub(inbox, "", m =>
                     {
                         if (display)
@@ -185,9 +185,9 @@ public class Program
                     var help = $$"""
                                     Consumer Mode {{ stream }}.{{ consumer }}
 
-                                    n <batch>  Pull next batch
-                                    ack        Toggle ack
-                                    q          quit
+                                    n<batch> <expire> <hb>  Pull next batch
+                                    ack                     Toggle ack
+                                    q                       quit
 
                                     ack: {{ doAck }}
                                     
@@ -201,19 +201,25 @@ public class Program
                         if (line == "q") break;
 
                         Match m;
-                        if ((m = Regex.Match(line, @"^\s*n\s*(\d+)\s*$")).Success)
+                        if ((m = Regex.Match(line, @"^\s*n\s*(\d+)(?:\s+(\d+)\s+(\d+))?\s*$")).Success)
                         {
                             // PUB $JS.API.CONSUMER.MSG.NEXT.s1.c2 _INBOX.143fbf756e154686967be929fa26cc55 63
                             // {"expires":30000000000,"batch":10,"idle_heartbeat":15000000000}
                             var batch = int.Parse(m.Groups[1].Value);
+                            var expire = int.Parse(m.Groups[2].Value);
+                            var hb = int.Parse(m.Groups[3].Value);
                             var api = $"$JS.API.CONSUMER.MSG.NEXT.{stream}.{consumer}";
                             var payload = $$"""
-                                            {"batch":{{batch}},"expires":30000000000,"idle_heartbeat":15000000000}
+                                            {"batch":{{batch}},"expires":{{expire}}000000000,"idle_heartbeat":{{hb}}000000000}
                                             """;
                             if (batch <= 1)
                                 payload = "";
                             
                             natsClient.Pub(subject: api, replyTo: inbox, payload: payload);
+                        }
+                        else if (line == "ack")
+                        {
+                            doAck.Toggle();
                         }
                         else if (line == "h")
                         {
@@ -281,29 +287,4 @@ public class Program
             Console.WriteLine($"GEN2:{r.GcStats.Gen2Collections}");
         }
     }
-}
-
-public class AtomicBool
-{
-    private int _i;
-
-    public AtomicBool(bool value) => _i = value ? 1 : 0;
-
-    public void Set() => Interlocked.Exchange(ref _i, 1);
-        
-    public void Reset() => Interlocked.Exchange(ref _i, 0);
-
-    public void Toggle()
-    {
-        if (True) Reset();
-        else Set();
-    }
-
-    public bool True => Volatile.Read(ref _i) == 1;
-        
-    public static implicit operator bool(AtomicBool d) => d.True;
-        
-    public static explicit operator AtomicBool(bool b) => new(b);
-
-    public override string ToString() => True ? "ON" : "OFF";
 }
