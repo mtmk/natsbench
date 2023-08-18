@@ -9,11 +9,13 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace client1;
 
-public class Program
+public static class Program
 {
-    private static int consumerInboxIndex;
-    static void Main(string[] args)
+    private static int _consumerInboxIndex;
+
+    private static void Main(string[] args)
     {
+        // Set encoding to UTF-8 to display emojis:
         Console.OutputEncoding = Encoding.UTF8;
         
         if (args.Length > 0 && args[0] == "bench1")
@@ -190,7 +192,7 @@ public class Program
                 int sid = -1;
                 try
                 {
-                    var inbox = $"_INBOX.{Interlocked.Increment(ref consumerInboxIndex)}";
+                    var inbox = $"_INBOX.{Interlocked.Increment(ref _consumerInboxIndex)}";
                     var doAck = (AtomicBool)true;
                     sid = natsClient.Sub(inbox, "", m =>
                     {
