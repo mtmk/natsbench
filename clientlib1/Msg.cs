@@ -11,7 +11,7 @@ public record struct Msg
     public string Payload { get; set; }
     public string[] Headers { get; set; }
 
-    public string DumpHeaders()
+    public readonly string DumpHeaders()
     {
         if (Headers == null || Headers.Length == 0) return "";
 
@@ -29,27 +29,71 @@ public record struct Msg
     {
         if (Headers == null || Headers.Length == 0) return "";
 
-        Match m;
+        string Error(in Msg self, string error)
+        {
+            return $"Error: {error}: {self.DumpHeaders()}";
+        }
+        
         int code;
         string tag;
-        if ((m = Regex.Match(Headers[0], @"^NATS/1\.0\s+(\d+)\s+(.+)\s*$")).Success)
         {
-            code = int.Parse(m.Groups[1].Value);
-            tag = m.Groups[2].Value;
+            Match m;
+            if ((m = Regex.Match(Headers[0], @"^NATS/1\.0\s+(\d+)\s+(.+)\s*$")).Success)
+            {
+                code = int.Parse(m.Groups[1].Value);
+                tag = m.Groups[2].Value;
+            }
+            else
+            {
+                return $"Error: Can't Parse headers: {DumpHeaders()}";
+            }
         }
-        else
+        
+        int? pendingMsgs = default;
+        int? pendingBytes = default;
+        int? lastStream = default;
+        int? lastConsumer = default;
+        foreach (var header in Headers)
         {
-            return $"Error: Can't Parse headers: {DumpHeaders()}";
+            // Nats-Pending-Messages: 15\r\nNats-Pending-Bytes
+            // Nats-Last-Consumer: 23\r\nNats-Last-Stream: 20
+            Match m;
+            if ((m = Regex.Match(header, @"^\s*Nats-(\w+)-(\w+):\s*(\d+)\s*$")).Success)
+            {
+                var what = m.Groups[1].Value;
+                var type = m.Groups[2].Value;
+                var size = int.Parse(m.Groups[3].Value);
+                if (what == "Pending" && type == "Messages")
+                {
+                    pendingMsgs = size;
+                }
+                else if (what == "Pending" && type == "Bytes")
+                {
+                    pendingBytes = size;
+                }
+                else if (what == "Last" && type == "Stream")
+                {
+                    lastStream = size;
+                }
+                else if (what == "Last" && type == "Consumer")
+                {
+                    lastConsumer = size;
+                }
+                else
+                {
+                    return Error(this, $"Can't parse header '{type}'");
+                }
+            }
         }
 
         if (code == 100 && tag == "Idle Heartbeat")
         {
-            return "💓";
+            return $"💓 last stream:{lastStream} consumer:{lastConsumer}";
         }
 
         if (code == 408 && tag == "Request Timeout")
         {
-            return "❌";
+            return $"❌ pending msgs:{pendingMsgs} bytes:{pendingBytes}";
         }
 
         return DumpHeaders();
