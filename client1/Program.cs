@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Diagnostics.Tracing;
 using System.Text;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using BenchmarkDotNet.Running;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -165,8 +166,27 @@ public class Program
                 if (!match.Success) continue;
                 var stream = match.Groups[1].Value;
                 var consumer = match.Groups[2].Value;
-                Println($"Consuming from {stream}:{consumer}");
 
+                // Check if the consumer is there
+                var warning = "";
+                {
+                    var response = natsClient.Req($"$JS.API.CONSUMER.INFO.{stream}.{consumer}", "");
+                    var json = JsonNode.Parse(response);
+                    //Console.WriteLine($"JSON:\n---\n{json}\n---\n");
+                    var deliverSubject = json["config"]?["deliver_subject"]?.GetValue<string>();
+                    var code = json["error"]?["code"]?.GetValue<int>();
+                    var errCode = json["error"]?["err_code"]?.GetValue<int>();
+                    var error = json["error"]?["description"]?.GetValue<string>();
+                    if (error != null)
+                    {
+                        warning = $"\n!!! Warning: Consumer info error {errCode}: {code} {error} !!!\n";
+                    }
+                    if (deliverSubject != null)
+                    {
+                        warning = "\n!!! Warning: Not a pull consumer !!!\n";
+                    }
+                }
+                
                 int sid = -1;
                 try
                 {
@@ -200,7 +220,7 @@ public class Program
                                     q                               quit
 
                                     ack: {{ doAck }}
-                                    
+                                    {{ warning }}
                                     """;
                     Println(message: help);
                     while (true)
