@@ -247,12 +247,15 @@ func (p *pullConsumer) Consume(handler MessageHandler, opts ...PullConsumeOpt) (
 					continue
 				}
 				if status == nats.RECONNECTING {
+					fmt.Println("### RECONNECTING")
 					if sub.hbMonitor != nil {
 						sub.hbMonitor.Stop()
 					}
 					isConnected = false
 				}
 				if status == nats.CONNECTED {
+					fmt.Println("### CONNECTED")
+
 					sub.Lock()
 					if !isConnected {
 						isConnected = true
@@ -315,6 +318,8 @@ func (p *pullConsumer) Consume(handler MessageHandler, opts ...PullConsumeOpt) (
 // to the values set in consumeOpts
 // lock should be held before calling this method
 func (s *pullSubscription) resetPendingMsgs() {
+	fmt.Println("### resetPendingMsgs")
+
 	s.pending.msgCount = s.consumeOpts.MaxMessages
 	s.pending.byteCount = s.consumeOpts.MaxBytes
 }
@@ -322,6 +327,8 @@ func (s *pullSubscription) resetPendingMsgs() {
 // decrementPendingMsgs decrements pending message count and byte count
 // lock should be held before calling this method
 func (s *pullSubscription) decrementPendingMsgs(msg *nats.Msg) {
+	fmt.Println("### decrementPendingMsgs")
+
 	s.pending.msgCount--
 	if s.consumeOpts.MaxBytes != 0 {
 		s.pending.byteCount -= msg.Size()
@@ -332,6 +339,8 @@ func (s *pullSubscription) decrementPendingMsgs(msg *nats.Msg) {
 // the buffer to trigger a new pull request.
 // lock should be held before calling this method
 func (s *pullSubscription) checkPending() {
+	fmt.Println("### checkPending")
+
 	if s.pending.msgCount < s.consumeOpts.ThresholdMessages ||
 		(s.pending.byteCount < s.consumeOpts.ThresholdBytes && s.consumeOpts.MaxBytes != 0) &&
 			atomic.LoadUint32(&s.fetchInProgress) == 1 {
@@ -502,6 +511,8 @@ func (s *pullSubscription) Next() (Msg, error) {
 }
 
 func (s *pullSubscription) handleStatusMsg(msg *nats.Msg, msgErr error) error {
+	fmt.Println("### handleStatusMsg")
+
 	if !errors.Is(msgErr, nats.ErrTimeout) && !errors.Is(msgErr, ErrMaxBytesExceeded) {
 		if s.consumeOpts.ErrHandler != nil {
 			s.consumeOpts.ErrHandler(s, msgErr)
