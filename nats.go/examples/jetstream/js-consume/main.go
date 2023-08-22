@@ -60,8 +60,10 @@ func main() {
 		fmt.Println(string(msg.Data()))
 		msg.Ack()
 	}, jetstream.ConsumeErrHandler(func(consumeCtx jetstream.ConsumeContext, err error) {
-		fmt.Println(err)
-	}))
+		fmt.Println("ConsumeErrHandler:", err)
+	}), jetstream.PullMaxMessages(10),
+		jetstream.PullHeartbeat(1*time.Second),
+		jetstream.PullExpiry(10*time.Second))
 	if err != nil {
 		log.Fatal(err)
 	}
