@@ -155,6 +155,7 @@ func (p *pullConsumer) Consume(handler MessageHandler, opts ...PullConsumeOpt) (
 
 	subject := apiSubj(p.jetStream.apiPrefix, fmt.Sprintf(apiRequestNextT, p.stream, p.name))
 
+	fmt.Println("### Consume:", "subject", subject)
 	// for single consume, use empty string as id
 	// this is useful for ordered consumer, where only a single subscription is valid
 	var consumeID string
@@ -185,6 +186,7 @@ func (p *pullConsumer) Consume(handler MessageHandler, opts ...PullConsumeOpt) (
 			return
 		}
 		defer func() {
+			fmt.Println("### internalHandler:defer func:checkPending")
 			sub.Lock()
 			sub.checkPending()
 			sub.hbMonitor.Reset(2 * consumeOpts.Heartbeat)
@@ -196,10 +198,12 @@ func (p *pullConsumer) Consume(handler MessageHandler, opts ...PullConsumeOpt) (
 				return
 			}
 
+			fmt.Println("### internalHandler:msgErr", msgErr)
+
 			sub.Lock()
 			err := sub.handleStatusMsg(msg, msgErr)
 			sub.Unlock()
-
+			fmt.Println("### internalHandler:handleStatusMsg:err", err)
 			if err != nil {
 				if atomic.LoadUint32(&sub.closed) == 1 {
 					return
@@ -225,6 +229,7 @@ func (p *pullConsumer) Consume(handler MessageHandler, opts ...PullConsumeOpt) (
 	sub.Lock()
 	// initial pull
 	sub.resetPendingMsgs()
+	fmt.Println("### PR:initial pull", "Batch:", consumeOpts.MaxMessages)
 	if err := sub.pull(&pullRequest{
 		Expires:   consumeOpts.Expires,
 		Batch:     consumeOpts.MaxMessages,
@@ -280,6 +285,7 @@ func (p *pullConsumer) Consume(handler MessageHandler, opts ...PullConsumeOpt) (
 							time.Sleep(5 * time.Second)
 						}
 
+						fmt.Println("### PR:nats.CONNECTED", "Batch:", sub.consumeOpts.MaxMessages)
 						sub.fetchNext <- &pullRequest{
 							Expires:   sub.consumeOpts.Expires,
 							Batch:     sub.consumeOpts.MaxMessages,
@@ -296,6 +302,7 @@ func (p *pullConsumer) Consume(handler MessageHandler, opts ...PullConsumeOpt) (
 					sub.consumeOpts.ErrHandler(sub, err)
 				}
 				if errors.Is(err, ErrNoHeartbeat) {
+					fmt.Println("### PR:ErrNoHeartbeat", "Batch:", sub.consumeOpts.MaxMessages)
 					sub.fetchNext <- &pullRequest{
 						Expires:   sub.consumeOpts.Expires,
 						Batch:     sub.consumeOpts.MaxMessages,
@@ -322,6 +329,7 @@ func (s *pullSubscription) resetPendingMsgs() {
 
 	s.pending.msgCount = s.consumeOpts.MaxMessages
 	s.pending.byteCount = s.consumeOpts.MaxBytes
+	fmt.Println("### pending.msgCount(resetPendingMsgs):", s.pending.msgCount)
 }
 
 // decrementPendingMsgs decrements pending message count and byte count
@@ -333,6 +341,7 @@ func (s *pullSubscription) decrementPendingMsgs(msg *nats.Msg) {
 	if s.consumeOpts.MaxBytes != 0 {
 		s.pending.byteCount -= msg.Size()
 	}
+	fmt.Println("### pending.msgCount(decrementPendingMsgs):", s.pending.msgCount)
 }
 
 // checkPending verifies whether there are enough messages in
@@ -345,6 +354,8 @@ func (s *pullSubscription) checkPending() {
 		(s.pending.byteCount < s.consumeOpts.ThresholdBytes && s.consumeOpts.MaxBytes != 0) &&
 			atomic.LoadUint32(&s.fetchInProgress) == 1 {
 
+		fmt.Println("### PR:checkPending", "pending:", s.pending.msgCount)
+		fmt.Println("### pending.msgCount(checkPending1):", s.pending.msgCount)
 		s.fetchNext <- &pullRequest{
 			Expires:   s.consumeOpts.Expires,
 			Batch:     s.consumeOpts.MaxMessages - s.pending.msgCount,
@@ -354,6 +365,7 @@ func (s *pullSubscription) checkPending() {
 
 		s.pending.msgCount = s.consumeOpts.MaxMessages
 		s.pending.byteCount = s.consumeOpts.MaxBytes
+		fmt.Println("### pending.msgCount(checkPending2):", s.pending.msgCount)
 	}
 }
 
@@ -472,6 +484,7 @@ func (s *pullSubscription) Next() (Msg, error) {
 			if errors.Is(err, ErrNoHeartbeat) {
 				s.pending.msgCount = 0
 				s.pending.byteCount = 0
+				fmt.Println("### pending.msgCount(ErrNoHeartbeat):", s.pending.msgCount)
 				if s.consumeOpts.ReportMissingHeartbeats {
 					return nil, err
 				}
@@ -497,6 +510,7 @@ func (s *pullSubscription) Next() (Msg, error) {
 					}
 					s.pending.msgCount = 0
 					s.pending.byteCount = 0
+					fmt.Println("### pending.msgCount(errConnected):", s.pending.msgCount)
 					hbMonitor = s.scheduleHeartbeatCheck(s.consumeOpts.Heartbeat)
 				}
 			}
@@ -523,10 +537,13 @@ func (s *pullSubscription) handleStatusMsg(msg *nats.Msg, msgErr error) error {
 		if errors.Is(msgErr, ErrConsumerLeadershipChanged) {
 			s.pending.msgCount = 0
 			s.pending.byteCount = 0
+			fmt.Println("### pending.msgCount(ErrConsumerLeadershipChanged):", s.pending.msgCount)
 		}
 		return nil
 	}
 	msgsLeft, bytesLeft, err := parsePending(msg)
+	fmt.Println("### handleStatusMsg:parsePending", "msgsLeft:", msgsLeft)
+
 	if err != nil {
 		if s.consumeOpts.ErrHandler != nil {
 			s.consumeOpts.ErrHandler(s, err)
@@ -542,6 +559,7 @@ func (s *pullSubscription) handleStatusMsg(msg *nats.Msg, msgErr error) error {
 			s.pending.byteCount = 0
 		}
 	}
+	fmt.Println("### pending.msgCount(parsePending):", s.pending.msgCount)
 	return nil
 }
 
@@ -568,6 +586,7 @@ func (s *pullSubscription) Stop() {
 // Fetch sends a single request to retrieve given number of messages.
 // It will wait up to provided expiry time if not all messages are available.
 func (p *pullConsumer) Fetch(batch int, opts ...FetchOpt) (MessageBatch, error) {
+	fmt.Println("### PR:Fetch", "Batch:", batch)
 	req := &pullRequest{
 		Batch:   batch,
 		Expires: DefaultExpires,
@@ -590,6 +609,7 @@ func (p *pullConsumer) Fetch(batch int, opts ...FetchOpt) (MessageBatch, error) 
 // This method will always send a single request and wait until provided number of bytes is
 // exceeded or request times out.
 func (p *pullConsumer) FetchBytes(maxBytes int, opts ...FetchOpt) (MessageBatch, error) {
+	fmt.Println("### PR:FetchBytes", "Batch:", 1000000)
 	req := &pullRequest{
 		Batch:    1000000,
 		MaxBytes: maxBytes,
@@ -612,6 +632,7 @@ func (p *pullConsumer) FetchBytes(maxBytes int, opts ...FetchOpt) (MessageBatch,
 // If there are any messages available at the time of sending request,
 // FetchNoWait will return immediately.
 func (p *pullConsumer) FetchNoWait(batch int) (MessageBatch, error) {
+	fmt.Println("### PR:FetchNoWait", "Batch:", batch)
 	req := &pullRequest{
 		Batch:  batch,
 		NoWait: true,
@@ -764,6 +785,7 @@ func (s *pullSubscription) cleanup() {
 // pull sends a pull request to the server and waits for messages using a subscription from [pullSubscription].
 // Messages will be fetched up to given batch_size or until there are no more messages or timeout is returned
 func (s *pullSubscription) pull(req *pullRequest, subject string) error {
+	fmt.Println("### pull", req.Batch)
 	s.consumer.Lock()
 	defer s.consumer.Unlock()
 	if atomic.LoadUint32(&s.closed) == 1 {

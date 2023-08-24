@@ -27,6 +27,7 @@ import (
 )
 
 func main() {
+	fmt.Println("starting..")
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Minute)
 	defer cancel()
 
