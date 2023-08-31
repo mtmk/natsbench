@@ -329,7 +329,8 @@ func (s *pullSubscription) resetPendingMsgs() {
 
 	s.pending.msgCount = s.consumeOpts.MaxMessages
 	s.pending.byteCount = s.consumeOpts.MaxBytes
-	fmt.Println("### pending.msgCount(resetPendingMsgs):", s.pending.msgCount)
+	fmt.Println("### resetPendingMsgs:pending.msgCount:", s.pending.msgCount)
+	fmt.Println("### resetPendingMsgs:pending.byteCount:", s.pending.byteCount)
 }
 
 // decrementPendingMsgs decrements pending message count and byte count
@@ -339,9 +340,11 @@ func (s *pullSubscription) decrementPendingMsgs(msg *nats.Msg) {
 
 	s.pending.msgCount--
 	if s.consumeOpts.MaxBytes != 0 {
+		fmt.Println("### msg.Size()", msg.Size())
 		s.pending.byteCount -= msg.Size()
 	}
-	fmt.Println("### pending.msgCount(decrementPendingMsgs):", s.pending.msgCount)
+	fmt.Println("### decrementPendingMsgs:pending.msgCount:", s.pending.msgCount)
+	fmt.Println("### decrementPendingMsgs:pending.byteCount:", s.pending.byteCount)
 }
 
 // checkPending verifies whether there are enough messages in
@@ -355,7 +358,8 @@ func (s *pullSubscription) checkPending() {
 			atomic.LoadUint32(&s.fetchInProgress) == 1 {
 
 		fmt.Println("### PR:checkPending", "pending:", s.pending.msgCount)
-		fmt.Println("### pending.msgCount(checkPending1):", s.pending.msgCount)
+		fmt.Println("### checkPending:pending.msgCount(1):", s.pending.msgCount)
+		fmt.Println("### checkPending:pending.byteCount(1):", s.pending.byteCount)
 		s.fetchNext <- &pullRequest{
 			Expires:   s.consumeOpts.Expires,
 			Batch:     s.consumeOpts.MaxMessages - s.pending.msgCount,
@@ -365,7 +369,8 @@ func (s *pullSubscription) checkPending() {
 
 		s.pending.msgCount = s.consumeOpts.MaxMessages
 		s.pending.byteCount = s.consumeOpts.MaxBytes
-		fmt.Println("### pending.msgCount(checkPending2):", s.pending.msgCount)
+		fmt.Println("### checkPending:pending.msgCount(2):", s.pending.msgCount)
+		fmt.Println("### checkPending:pending.byteCount(2):", s.pending.byteCount)
 	}
 }
 
@@ -543,12 +548,17 @@ func (s *pullSubscription) handleStatusMsg(msg *nats.Msg, msgErr error) error {
 	}
 	msgsLeft, bytesLeft, err := parsePending(msg)
 	fmt.Println("### handleStatusMsg:parsePending", "msgsLeft:", msgsLeft)
+	fmt.Println("### handleStatusMsg:parsePending", "bytesLeft:", bytesLeft)
 
 	if err != nil {
 		if s.consumeOpts.ErrHandler != nil {
 			s.consumeOpts.ErrHandler(s, err)
 		}
 	}
+
+	fmt.Println("### handleStatusMsg:pending.msgCount(1):", s.pending.msgCount)
+	fmt.Println("### handleStatusMsg:pending.byteCount(1):", s.pending.byteCount)
+
 	s.pending.msgCount -= msgsLeft
 	if s.pending.msgCount < 0 {
 		s.pending.msgCount = 0
@@ -559,7 +569,8 @@ func (s *pullSubscription) handleStatusMsg(msg *nats.Msg, msgErr error) error {
 			s.pending.byteCount = 0
 		}
 	}
-	fmt.Println("### pending.msgCount(parsePending):", s.pending.msgCount)
+	fmt.Println("### handleStatusMsg:pending.msgCount(2):", s.pending.msgCount)
+	fmt.Println("### handleStatusMsg:pending.byteCount(2):", s.pending.byteCount)
 	return nil
 }
 
@@ -786,6 +797,7 @@ func (s *pullSubscription) cleanup() {
 // Messages will be fetched up to given batch_size or until there are no more messages or timeout is returned
 func (s *pullSubscription) pull(req *pullRequest, subject string) error {
 	fmt.Println("### pull", req.Batch)
+	fmt.Println("### ============================================")
 	s.consumer.Lock()
 	defer s.consumer.Unlock()
 	if atomic.LoadUint32(&s.closed) == 1 {
