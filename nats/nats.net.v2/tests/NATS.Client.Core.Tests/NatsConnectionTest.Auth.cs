@@ -9,7 +9,7 @@ public abstract partial class NatsConnectionTest
             new Auth(
                 "TOKEN",
                 "resources/configs/auth/token.conf",
-                NatsOptions.Default with { AuthOptions = NatsAuthOptions.Default with { Token = "s3cr3t", }, }),
+                NatsOpts.Default with { AuthOpts = NatsAuthOpts.Default with { Token = "s3cr3t", }, }),
         };
 
         yield return new object[]
@@ -17,9 +17,9 @@ public abstract partial class NatsConnectionTest
             new Auth(
                 "USER-PASSWORD",
                 "resources/configs/auth/password.conf",
-                NatsOptions.Default with
+                NatsOpts.Default with
                 {
-                    AuthOptions = NatsAuthOptions.Default with { Username = "a", Password = "b", },
+                    AuthOpts = NatsAuthOpts.Default with { Username = "a", Password = "b", },
                 }),
         };
 
@@ -28,11 +28,11 @@ public abstract partial class NatsConnectionTest
             new Auth(
                 "NKEY",
                 "resources/configs/auth/nkey.conf",
-                NatsOptions.Default with
+                NatsOpts.Default with
                 {
-                    AuthOptions = NatsAuthOptions.Default with
+                    AuthOpts = NatsAuthOpts.Default with
                     {
-                        Nkey = "UALQSMXRSAA7ZXIGDDJBJ2JOYJVQIWM3LQVDM5KYIPG4EP3FAGJ47BOJ",
+                        NKey = "UALQSMXRSAA7ZXIGDDJBJ2JOYJVQIWM3LQVDM5KYIPG4EP3FAGJ47BOJ",
                         Seed = "SUAAVWRZG6M5FA5VRRGWSCIHKTOJC7EWNIT4JV3FTOIPO4OBFR5WA7X5TE",
                     },
                 }),
@@ -43,9 +43,9 @@ public abstract partial class NatsConnectionTest
             new Auth(
                 "NKEY (FROM FILE)",
                 "resources/configs/auth/nkey.conf",
-                NatsOptions.Default with
+                NatsOpts.Default with
                 {
-                    AuthOptions = NatsAuthOptions.Default with { NKeyFile = "resources/configs/auth/user.nk", },
+                    AuthOpts = NatsAuthOpts.Default with { NKeyFile = "resources/configs/auth/user.nk", },
                 }),
         };
 
@@ -54,9 +54,9 @@ public abstract partial class NatsConnectionTest
             new Auth(
                 "USER-CREDS",
                 "resources/configs/auth/operator.conf",
-                NatsOptions.Default with
+                NatsOpts.Default with
                 {
-                    AuthOptions = NatsAuthOptions.Default with
+                    AuthOpts = NatsAuthOpts.Default with
                     {
                         Jwt =
                         "eyJ0eXAiOiJKV1QiLCJhbGciOiJlZDI1NTE5LW5rZXkifQ.eyJqdGkiOiJOVDJTRkVIN0pNSUpUTzZIQ09GNUpYRFNDUU1WRlFNV0MyWjI1TFk3QVNPTklYTjZFVlhBIiwiaWF0IjoxNjc5MTQ0MDkwLCJpc3MiOiJBREpOSlpZNUNXQlI0M0NOSzJBMjJBMkxPSkVBSzJSS1RaTk9aVE1HUEVCRk9QVE5FVFBZTUlLNSIsIm5hbWUiOiJteS11c2VyIiwic3ViIjoiVUJPWjVMUVJPTEpRRFBBQUNYSk1VRkJaS0Q0R0JaSERUTFo3TjVQS1dSWFc1S1dKM0VBMlc0UloiLCJuYXRzIjp7InB1YiI6e30sInN1YiI6e30sInN1YnMiOi0xLCJkYXRhIjotMSwicGF5bG9hZCI6LTEsInR5cGUiOiJ1c2VyIiwidmVyc2lvbiI6Mn19.ElYEknDixe9pZdl55S9PjduQhhqR1OQLglI1JO7YK7ECYb1mLUjGd8ntcR7ISS04-_yhygSDzX8OS8buBIxMDA",
@@ -70,9 +70,9 @@ public abstract partial class NatsConnectionTest
             new Auth(
                 "USER-CREDS (FROM FILE)",
                 "resources/configs/auth/operator.conf",
-                NatsOptions.Default with
+                NatsOpts.Default with
                 {
-                    AuthOptions = NatsAuthOptions.Default with { CredsFile = "resources/configs/auth/user.creds", },
+                    AuthOpts = NatsAuthOpts.Default with { CredsFile = "resources/configs/auth/user.creds", },
                 }),
         };
     }
@@ -83,16 +83,16 @@ public abstract partial class NatsConnectionTest
     {
         var name = auth.Name;
         var serverConfig = auth.ServerConfig;
-        var clientOptions = auth.ClientOptions;
+        var clientOpts = auth.ClientOpts;
 
         _output.WriteLine($"AUTH TEST {name}");
 
-        var serverOptions = new NatsServerOptionsBuilder()
+        var serverOpts = new NatsServerOptsBuilder()
             .UseTransport(_transportType)
             .AddServerConfig(serverConfig)
             .Build();
 
-        await using var server = NatsServer.Start(_output, serverOptions, clientOptions);
+        await using var server = NatsServer.Start(_output, serverOpts, clientOpts);
 
         var subject = Guid.NewGuid().ToString("N");
 
@@ -104,8 +104,8 @@ public abstract partial class NatsConnectionTest
             Assert.Contains("Authorization Violation", natsException.GetBaseException().Message);
         }
 
-        await using var subConnection = server.CreateClientConnection(clientOptions);
-        await using var pubConnection = server.CreateClientConnection(clientOptions);
+        await using var subConnection = server.CreateClientConnection(clientOpts);
+        await using var pubConnection = server.CreateClientConnection(clientOpts);
 
         var signalComplete1 = new WaitSignal();
         var signalComplete2 = new WaitSignal();
@@ -141,7 +141,7 @@ public abstract partial class NatsConnectionTest
         await disconnectSignal2;
 
         _output.WriteLine("START NEW SERVER");
-        await using var newServer = NatsServer.Start(_output, serverOptions, clientOptions);
+        await using var newServer = NatsServer.Start(_output, serverOpts, clientOpts);
         await subConnection.ConnectAsync(); // wait open again
         await pubConnection.ConnectAsync(); // wait open again
 
@@ -162,18 +162,18 @@ public abstract partial class NatsConnectionTest
 
     public class Auth
     {
-        public Auth(string name, string serverConfig, NatsOptions clientOptions)
+        public Auth(string name, string serverConfig, NatsOpts clientOpts)
         {
             Name = name;
             ServerConfig = serverConfig;
-            ClientOptions = clientOptions;
+            ClientOpts = clientOpts;
         }
 
         public string Name { get; }
 
         public string ServerConfig { get; }
 
-        public NatsOptions ClientOptions { get; }
+        public NatsOpts ClientOpts { get; }
 
         public override string ToString() => Name;
     }

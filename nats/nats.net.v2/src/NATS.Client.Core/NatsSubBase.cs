@@ -1,23 +1,27 @@
 using System.Buffers;
 using System.Runtime.ExceptionServices;
+using System.Threading.Channels;
+using Microsoft.Extensions.Logging;
 using NATS.Client.Core.Commands;
 using NATS.Client.Core.Internal;
 
 namespace NATS.Client.Core;
 
-internal enum NatsSubEndReason
+public enum NatsSubEndReason
 {
     None,
     MaxMsgs,
+    MaxBytes,
     Timeout,
     IdleTimeout,
     StartUpTimeout,
     Exception,
-    JetStreamComplete,
 }
 
 public abstract class NatsSubBase
 {
+    private readonly ILogger _logger;
+    private readonly bool _debug;
     private readonly ISubscriptionManager _manager;
     private readonly Timer? _timeoutTimer;
     private readonly Timer? _idleTimeoutTimer;
@@ -39,6 +43,8 @@ public abstract class NatsSubBase
         string subject,
         NatsSubOpts? opts)
     {
+        _logger = connection.Opts.LoggerFactory.CreateLogger<NatsSubBase>();
+        _debug = _logger.IsEnabled(LogLevel.Debug);
         _manager = manager;
         _pendingMsgs = opts is { MaxMsgs: > 0 } ? opts.Value.MaxMsgs ?? -1 : -1;
         _countPendingMsgs = _pendingMsgs > 0;
@@ -94,7 +100,7 @@ public abstract class NatsSubBase
     // since INatsSub is marked as internal.
     public int? PendingMsgs => _pendingMsgs == -1 ? null : Volatile.Read(ref _pendingMsgs);
 
-    internal NatsSubEndReason EndReason => (NatsSubEndReason)Volatile.Read(ref _endReasonRaw);
+    public NatsSubEndReason EndReason => (NatsSubEndReason)Volatile.Read(ref _endReasonRaw);
 
     protected NatsConnection Connection { get; }
 
@@ -172,6 +178,13 @@ public abstract class NatsSubBase
             // Need to await to handle any exceptions
             await ReceiveInternalAsync(subject, replyTo, headersBuffer, payloadBuffer).ConfigureAwait(false);
         }
+        catch (ChannelClosedException)
+        {
+            // When user disposes or unsubscribes there maybe be messages still coming in
+            // (e.g. JetStream consumer batch might not be finished) even though we're not
+            // interested in the messages anymore. Hence we ignore any messages being
+            // fed into the channel and rejected.
+        }
         catch (Exception e)
         {
             var payload = new Memory<byte>(new byte[payloadBuffer.Length]);
@@ -204,28 +217,6 @@ public abstract class NatsSubBase
         yield return AsyncSubscribeCommand.Create(Connection.ObjectPool, Connection.GetCancellationTimer(default), sid, Subject, QueueGroup, PendingMsgs);
     }
 
-    internal void EndSubscription(NatsSubEndReason reason)
-    {
-        lock (this)
-        {
-            if (_endSubscription)
-                return;
-            _endSubscription = true;
-        }
-
-        Interlocked.Exchange(ref _endReasonRaw, (int)reason);
-
-        // Stops timers and completes channel writer to exit any message iterators
-        // synchronously, which is fine, however, we're not able to wait for
-        // UNSUB message to be sent to the server. If any message arrives after this point
-        // channel writer will ignore the message and we would effectively drop it.
-#pragma warning disable CA2012
-#pragma warning disable VSTHRD110
-        UnsubscribeAsync();
-#pragma warning restore VSTHRD110
-#pragma warning restore CA2012
-    }
-
     /// <summary>
     /// Invoked when a MSG or HMSG arrives for the subscription.
     /// <remarks>
@@ -234,7 +225,7 @@ public abstract class NatsSubBase
     /// </summary>
     /// <param name="subject">Subject received for this subscription. This might not be the subject you subscribed to especially when using wildcards. For example, if you subscribed to events.* you may receive events.open.</param>
     /// <param name="replyTo">Subject the sender wants you to send messages back to it.</param>
-    /// <param name="headersBuffer">Raw headers bytes. You can use <see cref="NatsConnection"/> <see cref="HeaderParser"/> to decode them.</param>
+    /// <param name="headersBuffer">Raw headers bytes. You can use <see cref="NatsConnection"/> <see cref="NatsHeaderParser"/> to decode them.</param>
     /// <param name="payloadBuffer">Raw payload bytes.</param>
     /// <returns></returns>
     protected abstract ValueTask ReceiveInternalAsync(string subject, string? replyTo, ReadOnlySequence<byte>? headersBuffer, ReadOnlySequence<byte> payloadBuffer);
@@ -270,4 +261,29 @@ public abstract class NatsSubBase
     /// Invoked to signal end of the subscription.
     /// </summary>
     protected abstract void TryComplete();
+
+    protected void EndSubscription(NatsSubEndReason reason)
+    {
+        if (_debug)
+            _logger.LogDebug("End subscription {Reason}", reason);
+
+        lock (this)
+        {
+            if (_endSubscription)
+                return;
+            _endSubscription = true;
+        }
+
+        Interlocked.Exchange(ref _endReasonRaw, (int)reason);
+
+        // Stops timers and completes channel writer to exit any message iterators
+        // synchronously, which is fine, however, we're not able to wait for
+        // UNSUB message to be sent to the server. If any message arrives after this point
+        // channel writer will ignore the message and we would effectively drop it.
+#pragma warning disable CA2012
+#pragma warning disable VSTHRD110
+        UnsubscribeAsync();
+#pragma warning restore VSTHRD110
+#pragma warning restore CA2012
+    }
 }

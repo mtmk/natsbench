@@ -57,11 +57,11 @@ public abstract partial class NatsConnectionTest
     {
         await using var server = NatsServer.Start(_output, _transportType);
 
-        var serializer1 = NatsOptions.Default.Serializer;
+        var serializer1 = NatsOpts.Default.Serializer;
 
         foreach (var serializer in new INatsSerializer[] { serializer1 })
         {
-            var options = NatsOptions.Default with { Serializer = serializer };
+            var options = NatsOpts.Default with { Serializer = serializer };
             await using var subConnection = server.CreateClientConnection(options);
             await using var pubConnection = server.CreateClientConnection(options);
 
@@ -100,7 +100,7 @@ public abstract partial class NatsConnectionTest
     {
         await using var server = NatsServer.Start(_output, _transportType);
 
-        var options = NatsOptions.Default with { RequestTimeout = TimeSpan.FromSeconds(5) };
+        var options = NatsOpts.Default with { RequestTimeout = TimeSpan.FromSeconds(5) };
         await using var subConnection = server.CreateClientConnection(options);
         await using var pubConnection = server.CreateClientConnection(options);
 
@@ -150,7 +150,7 @@ public abstract partial class NatsConnectionTest
     [Fact]
     public async Task ReconnectSingleTest()
     {
-        using var options = new NatsServerOptions
+        using var options = new NatsServerOpts
         {
             TransportType = _transportType,
             EnableWebSocket = _transportType == TransportType.WebSocket,
@@ -298,7 +298,7 @@ public abstract partial class NatsConnectionTest
 
         var disconnectSignal = connection1.ConnectionDisconnectedAsAwaitable(); // register disconnect before kill
 
-        _output.WriteLine($"TRY KILL SERVER1 Port:{cluster.Server1.Options.ServerPort}");
+        _output.WriteLine($"TRY KILL SERVER1 Port:{cluster.Server1.Opts.ServerPort}");
         await cluster.Server1.DisposeAsync(); // process kill
         await disconnectSignal;
 

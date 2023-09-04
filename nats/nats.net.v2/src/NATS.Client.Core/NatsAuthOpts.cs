@@ -1,8 +1,8 @@
 namespace NATS.Client.Core;
 
-public record NatsAuthOptions
+public record NatsAuthOpts
 {
-    public static readonly NatsAuthOptions Default = new();
+    public static readonly NatsAuthOpts Default = new();
 
     public string? Username { get; init; }
 
@@ -12,7 +12,7 @@ public record NatsAuthOptions
 
     public string? Jwt { get; init; }
 
-    public string? Nkey { get; init; }
+    public string? NKey { get; init; }
 
     public string? Seed { get; init; }
 

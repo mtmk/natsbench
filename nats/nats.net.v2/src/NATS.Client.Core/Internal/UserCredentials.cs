@@ -5,21 +5,21 @@ namespace NATS.Client.Core.Internal;
 
 internal class UserCredentials
 {
-    public UserCredentials(NatsAuthOptions authOptions)
+    public UserCredentials(NatsAuthOpts authOpts)
     {
-        Jwt = authOptions.Jwt;
-        Seed = authOptions.Seed;
-        Nkey = authOptions.Nkey;
-        Token = authOptions.Token;
+        Jwt = authOpts.Jwt;
+        Seed = authOpts.Seed;
+        NKey = authOpts.NKey;
+        Token = authOpts.Token;
 
-        if (!string.IsNullOrEmpty(authOptions.CredsFile))
+        if (!string.IsNullOrEmpty(authOpts.CredsFile))
         {
-            (Jwt, Seed) = LoadCredsFile(authOptions.CredsFile);
+            (Jwt, Seed) = LoadCredsFile(authOpts.CredsFile);
         }
 
-        if (!string.IsNullOrEmpty(authOptions.NKeyFile))
+        if (!string.IsNullOrEmpty(authOpts.NKeyFile))
         {
-            (Seed, Nkey) = LoadNKeyFile(authOptions.NKeyFile);
+            (Seed, NKey) = LoadNKeyFile(authOpts.NKeyFile);
         }
     }
 
@@ -27,7 +27,7 @@ internal class UserCredentials
 
     public string? Seed { get; }
 
-    public string? Nkey { get; }
+    public string? NKey { get; }
 
     public string? Token { get; }
 
@@ -36,19 +36,19 @@ internal class UserCredentials
         if (Seed == null || nonce == null)
             return null;
 
-        using var kp = Nkeys.FromSeed(Seed);
+        using var kp = NKeys.FromSeed(Seed);
         var bytes = kp.Sign(Encoding.ASCII.GetBytes(nonce));
         var sig = CryptoBytes.ToBase64String(bytes);
 
         return sig;
     }
 
-    internal void Authenticate(ClientOptions options, ServerInfo? info)
+    internal void Authenticate(ClientOpts opts, ServerInfo? info)
     {
-        options.JWT = Jwt;
-        options.Nkey = Nkey;
-        options.AuthToken = Token;
-        options.Sig = info is { AuthRequired: true, Nonce: { } } ? Sign(info.Nonce) : null;
+        opts.JWT = Jwt;
+        opts.NKey = NKey;
+        opts.AuthToken = Token;
+        opts.Sig = info is { AuthRequired: true, Nonce: { } } ? Sign(info.Nonce) : null;
     }
 
     private (string, string) LoadCredsFile(string path)

@@ -7,20 +7,18 @@ namespace NATS.Client.JetStream;
 
 public partial class NatsJSContext
 {
-    public NatsJSContext(NatsConnection nats)
-        : this(nats, new NatsJSOpts())
+    public NatsJSContext(NatsConnection connection)
+        : this(connection, new NatsJSOpts(connection.Opts))
     {
     }
 
-    public NatsJSContext(NatsConnection nats, NatsJSOpts opts)
+    public NatsJSContext(NatsConnection connection, NatsJSOpts opts)
     {
-        Nats = nats;
-        if (opts.InboxPrefix == string.Empty)
-            opts = opts with { InboxPrefix = nats.Options.InboxPrefix };
+        Connection = connection;
         Opts = opts;
     }
 
-    internal NatsConnection Nats { get; }
+    internal NatsConnection Connection { get; }
 
     internal NatsJSOpts Opts { get; }
 
@@ -36,7 +34,7 @@ public partial class NatsJSContext
         NatsPubOpts opts = default,
         CancellationToken cancellationToken = default)
     {
-        await using var sub = await Nats.RequestSubAsync<T, PubAckResponse>(
+        await using var sub = await Connection.RequestSubAsync<T, PubAckResponse>(
                 subject: subject,
                 data: data,
                 requestOpts: opts,
@@ -59,6 +57,8 @@ public partial class NatsJSContext
 
         throw new NatsJSException("No response received");
     }
+
+    internal string NewInbox() => $"{Opts.InboxPrefix}.{Guid.NewGuid():n}";
 
     internal async ValueTask<TResponse> JSRequestResponseAsync<TRequest, TResponse>(
         string subject,
@@ -84,11 +84,11 @@ public partial class NatsJSContext
             Validator.ValidateObject(request, new ValidationContext(request));
         }
 
-        await using var sub = await Nats.RequestSubAsync<TRequest, TResponse>(
+        await using var sub = await Connection.RequestSubAsync<TRequest, TResponse>(
                 subject: subject,
                 data: request,
                 requestOpts: default,
-                replyOpts: new NatsSubOpts { Serializer = JSErrorAwareJsonSerializer.Default },
+                replyOpts: new NatsSubOpts { Serializer = NatsJSErrorAwareJsonSerializer.Default },
                 cancellationToken)
             .ConfigureAwait(false);
 
@@ -107,7 +107,7 @@ public partial class NatsJSContext
 
         if (sub is NatsSubBase { EndReason: NatsSubEndReason.Exception, Exception: not null } sb)
         {
-            if (sb.Exception is NatsSubException { Exception.SourceException: JSApiErrorException jsError })
+            if (sb.Exception is NatsSubException { Exception.SourceException: NatsJSApiErrorException jsError })
             {
                 // Clear exception here so that subscription disposal won't throw it.
                 sb.ClearException();

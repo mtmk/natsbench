@@ -13,8 +13,8 @@ namespace NATS.Client.Core;
 /// <param name="Echo"></param>
 /// <param name="Verbose"></param>
 /// <param name="Headers"></param>
-/// <param name="AuthOptions"></param>
-/// <param name="TlsOptions"></param>
+/// <param name="AuthOpts"></param>
+/// <param name="TlsOpts"></param>
 /// <param name="Serializer"></param>
 /// <param name="LoggerFactory"></param>
 /// <param name="WriterBufferSize"></param>
@@ -33,15 +33,16 @@ namespace NATS.Client.Core;
 /// <param name="SubscriptionCleanUpInterval"></param>
 /// <param name="WriterCommandBufferLimit"></param>
 /// <param name="HeaderEncoding"></param>
-public sealed record NatsOptions
+/// <param name="WaitUntilSent"></param>
+public sealed record NatsOpts
 (
     string Url,
     string Name,
     bool Echo,
     bool Verbose,
     bool Headers,
-    NatsAuthOptions AuthOptions,
-    TlsOptions TlsOptions,
+    NatsAuthOpts AuthOpts,
+    NatsTlsOpts TlsOpts,
     INatsSerializer Serializer,
     ILoggerFactory LoggerFactory,
     int WriterBufferSize,
@@ -59,17 +60,18 @@ public sealed record NatsOptions
     TimeSpan CommandTimeout,
     TimeSpan SubscriptionCleanUpInterval,
     int? WriterCommandBufferLimit,
-    Encoding HeaderEncoding)
+    Encoding HeaderEncoding,
+    bool WaitUntilSent)
 {
-    public static readonly NatsOptions Default = new(
+    public static readonly NatsOpts Default = new(
         Url: "nats://localhost:4222",
         Name: "NATS .Net Client",
         Echo: true,
         Verbose: false,
         Headers: true,
-        AuthOptions: NatsAuthOptions.Default,
-        TlsOptions: TlsOptions.Default,
-        Serializer: JsonNatsSerializer.Default,
+        AuthOpts: NatsAuthOpts.Default,
+        TlsOpts: NatsTlsOpts.Default,
+        Serializer: NatsJsonSerializer.Default,
         LoggerFactory: NullLoggerFactory.Instance,
         WriterBufferSize: 65534, // 32767
         ReaderBufferSize: 1048576,
@@ -86,7 +88,8 @@ public sealed record NatsOptions
         CommandTimeout: TimeSpan.FromMinutes(1),
         SubscriptionCleanUpInterval: TimeSpan.FromMinutes(5),
         WriterCommandBufferLimit: 1_000,
-        HeaderEncoding: Encoding.ASCII);
+        HeaderEncoding: Encoding.ASCII,
+        WaitUntilSent: false);
 
     internal NatsUri[] GetSeedUris()
     {
