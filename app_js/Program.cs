@@ -29,7 +29,7 @@ tasks.Add(Task.Run(async () =>
         var cf = await consumer.FetchAsync<int>(new NatsJSFetchOpts { MaxMsgs = 10 });
         await foreach (var msg in cf.Msgs.ReadAllAsync())
         {
-            Console.WriteLine($"Fetch: {msg.Msg.Subject}: {msg.Msg.Data}");
+            Console.WriteLine($"Fetch: {msg.Subject}: {msg.Data}");
         }
     }
 }));
