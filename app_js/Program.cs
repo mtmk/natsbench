@@ -51,9 +51,9 @@ using NATS.Client.JetStream.Models;
 //  J E T S T R E A M   C O N T E X T
 //
 
-var nats = new NatsConnection();
+var nc = new NatsConnection();
 
-var js = new NatsJSContext(nats);
+var js = new NatsJSContext(nc);
 
 
 
@@ -93,14 +93,14 @@ var account = await js.GetAccountInfoAsync();
 
 Console.WriteLine($$"""
                     Account
-                    Domain: {{account.Domain}}
-                    Consumers: {{account.Consumers}}
-                    Streams: {{account.Streams}}
-                    Api.Errors: {{account.Api.Errors}}
-                    Api.Total: {{account.Api.Total}}
-                    Limits.MaxConsumers: {{account.Limits.MaxConsumers}}
-                    Limits.MaxStreams: {{account.Limits.MaxStreams}}
-                    Limits.MaxStorage: {{account.Limits.MaxStorage}}
+                        Domain: {{ account.Domain }}
+                        Consumers: {{ account.Consumers }}
+                        Streams: {{ account.Streams }}
+                        Api.Errors: {{ account.Api.Errors }}
+                        Api.Total: {{ account.Api.Total }}
+                        Limits.MaxConsumers: {{ account.Limits.MaxConsumers }}
+                        Limits.MaxStreams: {{ account.Limits.MaxStreams }}
+                        Limits.MaxStorage: {{ account.Limits.MaxStorage }}
                     """);
 
 
@@ -119,7 +119,12 @@ Console.WriteLine($$"""
 //  S T R E A M S
 //
 
-
+// * Create Stream
+// * Delete Stream
+// * Get Stream
+// * List Streams
+// * Update Stream
+    
 // CREATE STREAM
 
 var stream1 = await js.CreateStreamAsync("stream1", subjects: new[] { "stream1.*" });
@@ -130,6 +135,22 @@ stream1 = await js.CreateStreamAsync(new StreamConfiguration
     Subjects = new[] { "stream1.*" },
     Retention = StreamConfigurationRetention.workqueue,
 });
+
+// * stream.Info;
+//
+// * stream.DeleteAsync();
+// * stream.UpdateAsync();
+//
+// * stream.CreateConsumerAsync();
+// * stream.DeleteConsumerAsync();
+// * stream.GetConsumerAsync();
+// * stream.ListConsumersAsync();
+
+
+
+
+
+
 
 
 
@@ -144,9 +165,9 @@ stream1 = await js.GetStreamAsync("stream1");
 
 Console.WriteLine($$"""
                     Stream Info:
-                    Name: {{ stream1.Info.Config.Name }}
-                    Subjects: {{ string.Join(",", stream1.Info.Config.Subjects) }}
-                    Created: {{ stream1.Info.Created }}
+                        Name: {{ stream1.Info.Config.Name }}
+                        Subjects: {{ string.Join(",", stream1.Info.Config.Subjects) }}
+                        Created: {{ stream1.Info.Created }}
                     """);
 
 
@@ -241,6 +262,10 @@ if (!isStreamDeleted)
 //  C O N S U M E R S
 //
 
+// * Create Consumer
+// * Delete Consumer
+// * Get Consumer
+// * List Consumers
 
 // CREATE CONSUMER
 
@@ -257,7 +282,18 @@ consumer1 = await js.CreateConsumerAsync(new ConsumerCreateRequest
     },
 });
 
-
+//
+// * consumer.Info;
+// * consumer.DeleteAsync();
+//
+// * consumer.NextAsync<>();
+//
+// * consumer.FetchAsync<>();
+// * consumer.FetchAllAsync<>();
+//
+// * consumer.ConsumeAsync<>();
+// * consumer.ConsumeAllAsync<>();
+//
 
 
 
@@ -321,16 +357,15 @@ Console.WriteLine($$"""
 
 
 
+
+
+
+
 // CONSUMING MESSAGES
-
-
-
-
-
 
 { // NEXT
     
-    var next = await consumer1.NextAsync<Data>(new NatsJSNextOpts
+    var next = await consumer1.NextAsync<Order>(new NatsJSNextOpts
     {
         ErrorHandler = ErrorHandler,
         Expires = TimeSpan.FromSeconds(30),
@@ -338,7 +373,7 @@ Console.WriteLine($$"""
 
     if (next is { } msg)
     {
-        Console.WriteLine($"{msg.Subject}: {msg.Data.Id}");
+        Console.WriteLine($"{msg.Subject}: {msg.Data.OrderId}");
         await msg.AckAsync();
         
         // or
@@ -347,7 +382,7 @@ Console.WriteLine($$"""
         // await msg.AckTerminateAsync();
     }
     
-    void ErrorHandler(INatsJSFetch consumer, NatsJSNotification notification)
+    void ErrorHandler(INatsJSFetch _, NatsJSNotification notification)
     {
         Console.WriteLine($"Error: {notification.Code} {notification.Description}");
     }
@@ -376,11 +411,11 @@ Console.WriteLine($$"""
         ErrorHandler = ErrorHandler,
     };
 
-    var fetch = await consumer1.FetchAsync<Data>(opts);
+    var fetch = await consumer1.FetchAsync<Order>(opts);
     
     await foreach (var msg in fetch.Msgs.ReadAllAsync())
     {
-        Console.WriteLine($"{msg.Subject}: {msg.Data.Id}");
+        Console.WriteLine($"{msg.Subject}: {msg.Data.OrderId}");
         await msg.AckAsync();
     }
 
@@ -407,9 +442,9 @@ Console.WriteLine($$"""
     
     // Alternative fetch all
     
-    await foreach (var msg in consumer1.FetchAllAsync<Data>(new NatsJSFetchOpts { MaxMsgs = 32 }))
+    await foreach (var msg in consumer1.FetchAllAsync<Order>(new NatsJSFetchOpts{MaxMsgs=32}))
     {
-        Console.WriteLine($"{msg.Subject}: {msg.Data.Id}");
+        Console.WriteLine($"{msg.Subject}: {msg.Data.OrderId}");
         await msg.AckAsync();
     }
     
@@ -432,15 +467,17 @@ Console.WriteLine($$"""
         MaxBytes = 1024,
         ThresholdBytes = 256, // default is half of max
         // MaxMsgs = 100, // only allow msgs or bytes, throw exception otherwise
+        // ThresholdMsgs = 50,
         Expires = TimeSpan.FromMinutes(2),
+        IdleHeartbeat = TimeSpan.FromSeconds(10),
         ErrorHandler = ErrorHandler,
     };
     
-    var consume = await consumer1.ConsumeAsync<Data>(opts);
+    var consume = await consumer1.ConsumeAsync<Order>(opts);
 
     await foreach (var msg in consume.Msgs.ReadAllAsync())
     {
-        Console.WriteLine($"{msg.Subject}: {msg.Data.Id}");
+        Console.WriteLine($"{msg.Subject}: {msg.Data.OrderId}");
         await msg.AckAsync();
     }
 
@@ -465,9 +502,9 @@ Console.WriteLine($$"""
     
     // Alternative consume all using asynchronous enumerable
     
-    await foreach (var msg in consumer1.ConsumeAllAsync<Data>(new NatsJSConsumeOpts { MaxMsgs = 64 }))
+    await foreach (var msg in consumer1.ConsumeAllAsync<Order>(new NatsJSConsumeOpts{MaxMsgs=64}))
     {
-        Console.WriteLine($"{msg.Subject}: {msg.Data.Id}");
+        Console.WriteLine($"{msg.Subject}: {msg.Data.OrderId}");
         await msg.AckAsync();
     }
     
@@ -515,20 +552,20 @@ Console.WriteLine($$"""
 //  P U B L I S H
 //
 
-var ack = await js.PublishAsync("stream1.foo", new Data { Id = 1 });
+var ack = await js.PublishAsync("stream1.foo", new Order { OrderId = 1 });
 
-ack = await js.PublishAsync("stream1.foo", new Data { Id = 2 }, new NatsPubOpts
+ack = await js.PublishAsync("stream1.foo", new Order { OrderId = 2 }, new NatsPubOpts
 {
     Headers = new NatsHeaders { { "Nats-Msg-Id", "2" } },
 });
 
 Console.WriteLine($$"""
                     ACK:
-                    Domain: {{ ack.Domain }}
-                    Stream: {{ ack.Stream }}
-                    Duplicate: {{ ack.Duplicate }}
-                    Seq: {{ ack.Seq }}
-                    API Error: {{ ack.Error }}
+                        Domain: {{ ack.Domain }}
+                        Stream: {{ ack.Stream }}
+                        Duplicate: {{ ack.Duplicate }}
+                        Seq: {{ ack.Seq }}
+                        API Error: {{ ack.Error }}
                     """);
 
 ack.EnsureSuccess();
@@ -550,7 +587,39 @@ ack.EnsureSuccess();
 
 
 
-public class Data
+
+
+
+/*******************************************************************************************/
+//
+//  FEATURES NOT IMPLEMENTED
+//
+// * Stream getting/deleting messages
+//     * getMsg(getMsgOpts)
+//     * deleteMsg(deleteMsgOpts)
+//     * purge(purgeOpts)
+//
+// * Consume reconnect implemented with following missing
+//     * Pause/resume heartbeat timer
+//     * Check if consumer exists
+//
+// * Consume drain()
+//
+// * Double ACK
+//     * Publish (?)
+//     * Consume (?)
+//
+
+
+
+
+
+
+
+
+
+
+public class Order
 {
-    public int Id { get; set; }
+    public int OrderId { get; set; }
 }
