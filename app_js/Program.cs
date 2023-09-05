@@ -13,26 +13,24 @@ using NATS.Client.JetStream.Models;
  
 
             
-                 ██ ███████ ████████ ███████ ████████ ██████  ███████  █████  ███    ███ 
-                 ██ ██         ██    ██         ██    ██   ██ ██      ██   ██ ████  ████ 
-                 ██ █████      ██    ███████    ██    ██████  █████   ███████ ██ ████ ██ 
-            ██   ██ ██         ██         ██    ██    ██   ██ ██      ██   ██ ██  ██  ██ 
-             █████  ███████    ██    ███████    ██    ██   ██ ███████ ██   ██ ██      ██ 
-                                                                                         
-                                                                                         
-                           ███    ██ ███████ ████████              ██████       
-                           ████   ██ ██         ██                      ██      
-                           ██ ██  ██ █████      ██        ██    ██  █████       
-                           ██  ██ ██ ██         ██         ██  ██  ██           
-                        ██ ██   ████ ███████    ██          ████   ███████      
-                                                                                         
-                                                                                                
-                   ██████  ██████  ███████ ██    ██ ██ ███████ ██     ██      ██                
-                   ██   ██ ██   ██ ██      ██    ██ ██ ██      ██     ██     ███                
-                   ██████  ██████  █████   ██    ██ ██ █████   ██  █  ██      ██                
-                   ██      ██   ██ ██       ██  ██  ██ ██      ██ ███ ██      ██                
-                   ██      ██   ██ ███████   ████   ██ ███████  ███ ███       ██                
-                                                                                                
+              ██ ███████ ████████ ███████ ████████ ██████  ███████  █████  ███    ███ 
+              ██ ██         ██    ██         ██    ██   ██ ██      ██   ██ ████  ████ 
+              ██ █████      ██    ███████    ██    ██████  █████   ███████ ██ ████ ██ 
+         ██   ██ ██         ██         ██    ██    ██   ██ ██      ██   ██ ██  ██  ██ 
+          █████  ███████    ██    ███████    ██    ██   ██ ███████ ██   ██ ██      ██ 
+                                                                                      
+                        ███    ██ ███████ ████████              ██████       
+                        ████   ██ ██         ██                      ██      
+                        ██ ██  ██ █████      ██        ██    ██  █████       
+                        ██  ██ ██ ██         ██         ██  ██  ██           
+                     ██ ██   ████ ███████    ██          ████   ███████      
+                                                                                             
+                ██████  ██████  ███████ ██    ██ ██ ███████ ██     ██      ██                
+                ██   ██ ██   ██ ██      ██    ██ ██ ██      ██     ██     ███                
+                ██████  ██████  █████   ██    ██ ██ █████   ██  █  ██      ██                
+                ██      ██   ██ ██       ██  ██  ██ ██      ██ ███ ██      ██                
+                ██      ██   ██ ███████   ████   ██ ███████  ███ ███       ██                
+                                                                                             
                                                                              
 
 
@@ -48,7 +46,7 @@ using NATS.Client.JetStream.Models;
 
 
 
-/****************************************************************************************************************/
+/*******************************************************************************************/
 //
 //  J E T S T R E A M   C O N T E X T
 //
@@ -64,7 +62,7 @@ var js = new NatsJSContext(nats);
 
 
 
-/****************************************************************************************************************/
+/*******************************************************************************************/
 
 
 
@@ -86,7 +84,7 @@ var js = new NatsJSContext(nats);
 
 
 
-/****************************************************************************************************************/
+/*******************************************************************************************/
 //
 //  A C C O U N T   I N F O 
 //
@@ -107,7 +105,7 @@ Console.WriteLine($$"""
 
 
 
-/****************************************************************************************************************/
+/*******************************************************************************************/
 
 
 
@@ -116,7 +114,7 @@ Console.WriteLine($$"""
 
 
 
-/****************************************************************************************************************/
+/*******************************************************************************************/
 //
 //  S T R E A M S
 //
@@ -162,17 +160,18 @@ Console.WriteLine($$"""
 
 
 // LIST STREAMS
+{
+    var list = await js.ListStreamsAsync(new StreamListRequest { Subject = "stream1.*" });
 
-var streamList = await js.ListStreamsAsync(new StreamListRequest { Subject = "stream1.*" });
+    foreach (var stream in list.Streams)
+        Console.WriteLine($"Stream: {stream.Config.Name}");
 
-foreach (var stream in streamList.Streams)
-    Console.WriteLine($"Stream: {stream.Config.Name}");
+    Console.WriteLine($"Streams" +
+                      $" offset:{list.Offset}," +
+                      $" limit:{list.Limit}," +
+                      $" total:{list.Total}");
 
-Console.WriteLine($"Streams offset:{streamList.Offset}," +
-                  $" limit:{streamList.Limit}," +
-                  $" total:{streamList.Total}");
-
-
+}
 
 
 
@@ -186,7 +185,11 @@ Console.WriteLine($"Streams offset:{streamList.Offset}," +
 
 // UPDATE STREAM
 
-stream1 = await js.UpdateStreamAsync(new StreamUpdateRequest { Name = "stream1", MaxMsgs = 1_000_000 });
+stream1 = await js.UpdateStreamAsync(new StreamUpdateRequest
+{
+    Name = "stream1",
+    MaxMsgs = 1_000_000,
+});
 
 Console.WriteLine($"New stream max msgs: {stream1.Info.Config.MaxMsgs}");
 
@@ -217,7 +220,7 @@ if (!isStreamDeleted)
 
 
 
-/****************************************************************************************************************/
+/*******************************************************************************************/
 
 
 
@@ -233,7 +236,7 @@ if (!isStreamDeleted)
 
 
 
-/****************************************************************************************************************/
+/*******************************************************************************************/
 //
 //  C O N S U M E R S
 //
@@ -266,22 +269,22 @@ consumer1 = await js.CreateConsumerAsync(new ConsumerCreateRequest
 
 
 // LIST CONSUMERS
-
-ConsumerListResponse list = await js.ListConsumersAsync("stream1", new ConsumerListRequest { Offset = 0 });
-
-foreach (var consumer in list.Consumers)
 {
-    Console.WriteLine($"Consumer: {consumer.Name}");
+    var list = await js.ListConsumersAsync("stream1", new ConsumerListRequest { Offset = 0 });
+
+    foreach (var consumer in list.Consumers)
+    {
+        Console.WriteLine($"Consumer: {consumer.Name}");
+    }
+
+    Console.WriteLine($$"""
+                        List:
+                            Offset: {{list.Offset}}
+                            Limit: {{list.Limit}}
+                            Total: {{list.Total}}
+                        """);
+
 }
-
-Console.WriteLine($$"""
-                   List:
-                       Offset: {{ list.Offset }}
-                       Limit: {{ list.Limit }}
-                       Total: {{ list.Total }}
-                   """);
-
-
 
 
 
@@ -327,7 +330,7 @@ Console.WriteLine($$"""
 
 { // NEXT
     
-    var next = await consumer1.NextAsync<TestData>(new NatsJSNextOpts
+    var next = await consumer1.NextAsync<Data>(new NatsJSNextOpts
     {
         ErrorHandler = ErrorHandler,
         Expires = TimeSpan.FromSeconds(30),
@@ -344,7 +347,7 @@ Console.WriteLine($$"""
         // await msg.AckTerminateAsync();
     }
     
-    void ErrorHandler(INatsJSSubFetch consumer, NatsJSNotification notification)
+    void ErrorHandler(INatsJSFetch consumer, NatsJSNotification notification)
     {
         Console.WriteLine($"Error: {notification.Code} {notification.Description}");
     }
@@ -373,7 +376,7 @@ Console.WriteLine($$"""
         ErrorHandler = ErrorHandler,
     };
 
-    var fetch = await consumer1.FetchAsync<TestData>(opts);
+    var fetch = await consumer1.FetchAsync<Data>(opts);
     
     await foreach (var msg in fetch.Msgs.ReadAllAsync())
     {
@@ -382,7 +385,7 @@ Console.WriteLine($$"""
     }
 
     
-    void ErrorHandler(INatsJSSubFetch consumer, NatsJSNotification notification)
+    void ErrorHandler(INatsJSFetch consumer, NatsJSNotification notification)
     {
         Console.WriteLine($"Error: {notification.Code} {notification.Description}");
         consumer.Stop();
@@ -404,7 +407,7 @@ Console.WriteLine($$"""
     
     // Alternative fetch all
     
-    await foreach (var msg in consumer1.FetchAllAsync<TestData>(new NatsJSFetchOpts { MaxMsgs = 100 }))
+    await foreach (var msg in consumer1.FetchAllAsync<Data>(new NatsJSFetchOpts { MaxMsgs = 32 }))
     {
         Console.WriteLine($"{msg.Subject}: {msg.Data.Id}");
         await msg.AckAsync();
@@ -433,7 +436,7 @@ Console.WriteLine($$"""
         ErrorHandler = ErrorHandler,
     };
     
-    var consume = await consumer1.ConsumeAsync<TestData>(opts);
+    var consume = await consumer1.ConsumeAsync<Data>(opts);
 
     await foreach (var msg in consume.Msgs.ReadAllAsync())
     {
@@ -442,7 +445,7 @@ Console.WriteLine($$"""
     }
 
 
-    void ErrorHandler(INatsJSSubConsume consumer, NatsJSNotification notification)
+    void ErrorHandler(INatsJSConsume consumer, NatsJSNotification notification)
     {
         Console.WriteLine($"Error: {notification.Code} {notification.Description}");
         consumer.Stop();
@@ -462,7 +465,7 @@ Console.WriteLine($$"""
     
     // Alternative consume all using asynchronous enumerable
     
-    await foreach (var msg in consumer1.ConsumeAllAsync<TestData>(new NatsJSConsumeOpts { MaxMsgs = 64 }))
+    await foreach (var msg in consumer1.ConsumeAllAsync<Data>(new NatsJSConsumeOpts { MaxMsgs = 64 }))
     {
         Console.WriteLine($"{msg.Subject}: {msg.Data.Id}");
         await msg.AckAsync();
@@ -507,14 +510,14 @@ Console.WriteLine($$"""
 
 
 
-/****************************************************************************************************************/
+/*******************************************************************************************/
 //
 //  P U B L I S H
 //
 
-var ack = await js.PublishAsync("stream1.foo", new TestData { Id = 1 });
+var ack = await js.PublishAsync("stream1.foo", new Data { Id = 1 });
 
-ack = await js.PublishAsync("stream1.foo", new TestData { Id = 2 }, new NatsPubOpts
+ack = await js.PublishAsync("stream1.foo", new Data { Id = 2 }, new NatsPubOpts
 {
     Headers = new NatsHeaders { { "Nats-Msg-Id", "2" } },
 });
@@ -539,7 +542,7 @@ ack.EnsureSuccess();
 
 
 
-/****************************************************************************************************************/
+/*******************************************************************************************/
 
 
 
@@ -547,7 +550,7 @@ ack.EnsureSuccess();
 
 
 
-public class TestData
+public class Data
 {
     public int Id { get; set; }
 }
