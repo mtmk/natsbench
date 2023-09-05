@@ -1,10 +1,45 @@
-﻿using System.Security.Principal;
-using NATS.Client.Core;
+﻿using NATS.Client.Core;
 using NATS.Client.JetStream;
 using NATS.Client.JetStream.Models;
 
 
 
+
+/*
+ 
+ 
+ 
+ 
+ 
+
+            
+                 ██ ███████ ████████ ███████ ████████ ██████  ███████  █████  ███    ███ 
+                 ██ ██         ██    ██         ██    ██   ██ ██      ██   ██ ████  ████ 
+                 ██ █████      ██    ███████    ██    ██████  █████   ███████ ██ ████ ██ 
+            ██   ██ ██         ██         ██    ██    ██   ██ ██      ██   ██ ██  ██  ██ 
+             █████  ███████    ██    ███████    ██    ██   ██ ███████ ██   ██ ██      ██ 
+                                                                                         
+                                                                                         
+                           ███    ██ ███████ ████████              ██████       
+                           ████   ██ ██         ██                      ██      
+                           ██ ██  ██ █████      ██        ██    ██  █████       
+                           ██  ██ ██ ██         ██         ██  ██  ██           
+                        ██ ██   ████ ███████    ██          ████   ███████      
+                                                                                         
+                                                                                                
+                   ██████  ██████  ███████ ██    ██ ██ ███████ ██     ██      ██                
+                   ██   ██ ██   ██ ██      ██    ██ ██ ██      ██     ██     ███                
+                   ██████  ██████  █████   ██    ██ ██ █████   ██  █  ██      ██                
+                   ██      ██   ██ ██       ██  ██  ██ ██      ██ ███ ██      ██                
+                   ██      ██   ██ ███████   ████   ██ ███████  ███ ███       ██                
+                                                                                                
+                                                                             
+
+
+
+
+                                                                                               
+*/
 
 
 
@@ -21,6 +56,12 @@ using NATS.Client.JetStream.Models;
 var nats = new NatsConnection();
 
 var js = new NatsJSContext(nats);
+
+
+
+
+
+
 
 
 /****************************************************************************************************************/
@@ -98,6 +139,7 @@ stream1 = await js.CreateStreamAsync(new StreamConfiguration
 
 
 
+
  // GET STREAM
 
 stream1 = await js.GetStreamAsync("stream1");
@@ -114,6 +156,11 @@ Console.WriteLine($$"""
 
 
 
+
+
+
+
+
 // LIST STREAMS
 
 var streamList = await js.ListStreamsAsync(new StreamListRequest { Subject = "stream1.*" });
@@ -121,7 +168,13 @@ var streamList = await js.ListStreamsAsync(new StreamListRequest { Subject = "st
 foreach (var stream in streamList.Streams)
     Console.WriteLine($"Stream: {stream.Config.Name}");
 
-Console.WriteLine($"Streams offset:{streamList.Offset}, limit:{streamList.Limit}, total:{streamList.Total}");
+Console.WriteLine($"Streams offset:{streamList.Offset}," +
+                  $" limit:{streamList.Limit}," +
+                  $" total:{streamList.Total}");
+
+
+
+
 
 
 
@@ -142,12 +195,24 @@ Console.WriteLine($"New stream max msgs: {stream1.Info.Config.MaxMsgs}");
 
 
 
+
+
+
+
+
+
+
+
+
+
 // DELETE STREAM
 
 var isStreamDeleted = await stream1.DeleteAsync();
 
 if (!isStreamDeleted)
     Console.WriteLine($"Error deleting stream {stream1.Info.Config.Name}");
+
+
 
 
 
@@ -197,9 +262,12 @@ consumer1 = await js.CreateConsumerAsync(new ConsumerCreateRequest
 
 
 
+
+
+
 // LIST CONSUMERS
 
-var list = await js.ListConsumersAsync("stream1", new ConsumerListRequest { Offset = 0 });
+ConsumerListResponse list = await js.ListConsumersAsync("stream1", new ConsumerListRequest { Offset = 0 });
 
 foreach (var consumer in list.Consumers)
 {
@@ -208,9 +276,9 @@ foreach (var consumer in list.Consumers)
 
 Console.WriteLine($$"""
                    List:
-                   Offset: {{ list.Offset }}
-                   Limit: {{ list.Limit }}
-                   Total: {{ list.Total }}
+                       Offset: {{ list.Offset }}
+                       Limit: {{ list.Limit }}
+                       Total: {{ list.Total }}
                    """);
 
 
@@ -230,10 +298,21 @@ consumer1 = await js.GetConsumerAsync("stream1", "consumer1");
 
 Console.WriteLine($$"""
                   Consumer:
-                  Name: {{ consumer1.Info.Name }}
-                  Stream: {{ consumer1.Info.StreamName }}
-                  Created: {{ consumer1.Info.Created }}
+                      Name: {{ consumer1.Info.Name }}
+                      Stream: {{ consumer1.Info.StreamName }}
+                      Created: {{ consumer1.Info.Created }}
                   """);
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -242,12 +321,11 @@ Console.WriteLine($$"""
 // CONSUMING MESSAGES
 
 
+
+
+
+
 { // NEXT
-    
-    void ErrorHandler(INatsJSSubFetch consumer, NatsJSNotification notification)
-    {
-        Console.WriteLine($"Error: {notification.Code} {notification.Description}");
-    }
     
     var next = await consumer1.NextAsync<TestData>(new NatsJSNextOpts
     {
@@ -259,8 +337,26 @@ Console.WriteLine($$"""
     {
         Console.WriteLine($"{msg.Subject}: {msg.Data.Id}");
         await msg.AckAsync();
+        
+        // or
+        // await msg.NackAsync();
+        // await msg.AckProgressAsync();
+        // await msg.AckTerminateAsync();
+    }
+    
+    void ErrorHandler(INatsJSSubFetch consumer, NatsJSNotification notification)
+    {
+        Console.WriteLine($"Error: {notification.Code} {notification.Description}");
     }
 }
+
+
+
+
+
+
+
+
 
 
 
@@ -271,6 +367,9 @@ Console.WriteLine($$"""
     var opts = new NatsJSFetchOpts
     {
         MaxMsgs = 100,
+        // MaxBytes = 1024, // Either bytes or msgs, throw exception otherwise
+        Expires = TimeSpan.FromMinutes(1),
+        IdleHeartbeat = TimeSpan.FromSeconds(10),
         ErrorHandler = ErrorHandler,
     };
 
@@ -280,11 +379,6 @@ Console.WriteLine($$"""
     {
         Console.WriteLine($"{msg.Subject}: {msg.Data.Id}");
         await msg.AckAsync();
-        
-        // or
-        // await msg.NackAsync();
-        // await msg.AckProgressAsync();
-        // await msg.AckTerminateAsync();
     }
 
     
@@ -296,8 +390,21 @@ Console.WriteLine($$"""
     
     
     
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     // Alternative fetch all
-    await foreach (var msg in consumer1.FetchAllAsync<TestData>(opts))
+    
+    await foreach (var msg in consumer1.FetchAllAsync<TestData>(new NatsJSFetchOpts { MaxMsgs = 100 }))
     {
         Console.WriteLine($"{msg.Subject}: {msg.Data.Id}");
         await msg.AckAsync();
@@ -319,8 +426,9 @@ Console.WriteLine($$"""
     
     var opts = new NatsJSConsumeOpts
     {
-        MaxMsgs = 100,
-        ThresholdMsgs = 75,
+        MaxBytes = 1024,
+        ThresholdBytes = 256, // default is half of max
+        // MaxMsgs = 100, // only allow msgs or bytes, throw exception otherwise
         Expires = TimeSpan.FromMinutes(2),
         ErrorHandler = ErrorHandler,
     };
@@ -343,8 +451,18 @@ Console.WriteLine($$"""
     
     
     
+    
+    
+    
+    
+    
+    
+    
+    
+    
     // Alternative consume all using asynchronous enumerable
-    await foreach (var msg in consumer1.ConsumeAllAsync<TestData>(opts))
+    
+    await foreach (var msg in consumer1.ConsumeAllAsync<TestData>(new NatsJSConsumeOpts { MaxMsgs = 64 }))
     {
         Console.WriteLine($"{msg.Subject}: {msg.Data.Id}");
         await msg.AckAsync();
@@ -352,6 +470,11 @@ Console.WriteLine($$"""
     
     
 }
+
+
+
+
+
 
 
 
@@ -391,6 +514,11 @@ Console.WriteLine($$"""
 
 var ack = await js.PublishAsync("stream1.foo", new TestData { Id = 1 });
 
+ack = await js.PublishAsync("stream1.foo", new TestData { Id = 2 }, new NatsPubOpts
+{
+    Headers = new NatsHeaders { { "Nats-Msg-Id", "2" } },
+});
+
 Console.WriteLine($$"""
                     ACK:
                     Domain: {{ ack.Domain }}
@@ -402,7 +530,22 @@ Console.WriteLine($$"""
 
 ack.EnsureSuccess();
 
+
+
+
+
+
+
+
+
+
 /****************************************************************************************************************/
+
+
+
+
+
+
 
 public class TestData
 {
