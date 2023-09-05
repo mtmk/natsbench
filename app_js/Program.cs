@@ -18,7 +18,7 @@ using NATS.Client.JetStream.Models;
 //  J E T S T R E A M   C O N T E X T
 //
 
-await using var nats = new NatsConnection();
+var nats = new NatsConnection();
 
 var js = new NatsJSContext(nats);
 
@@ -80,13 +80,25 @@ Console.WriteLine($$"""
 //  S T R E A M S
 //
 
+
+// CREATE STREAM
+
 var stream1 = await js.CreateStreamAsync("stream1", subjects: new[] { "stream1.*" });
+
 stream1 = await js.CreateStreamAsync(new StreamConfiguration
 {
     Name = "stream1",
     Subjects = new[] { "stream1.*" },
     Retention = StreamConfigurationRetention.workqueue,
 });
+
+
+
+
+
+
+
+ // GET STREAM
 
 stream1 = await js.GetStreamAsync("stream1");
 
@@ -97,12 +109,48 @@ Console.WriteLine($$"""
                     Created: {{ stream1.Info.Created }}
                     """);
 
-await foreach (var stream in js.ListStreamsAsync(new StreamListRequest { Subject = "stream1.*" }))
-    Console.WriteLine($"Stream: {stream.Info.Config.Name}");
+
+
+
+
+
+// LIST STREAMS
+
+var streamList = await js.ListStreamsAsync(new StreamListRequest { Subject = "stream1.*" });
+
+foreach (var stream in streamList.Streams)
+    Console.WriteLine($"Stream: {stream.Config.Name}");
+
+Console.WriteLine($"Streams offset:{streamList.Offset}, limit:{streamList.Limit}, total:{streamList.Total}");
+
+
+
+
+
+
+
+
+
+// UPDATE STREAM
 
 stream1 = await js.UpdateStreamAsync(new StreamUpdateRequest { Name = "stream1", MaxMsgs = 1_000_000 });
 
+Console.WriteLine($"New stream max msgs: {stream1.Info.Config.MaxMsgs}");
+
+
+
+
+
+
+// DELETE STREAM
+
 var isStreamDeleted = await stream1.DeleteAsync();
+
+if (!isStreamDeleted)
+    Console.WriteLine($"Error deleting stream {stream1.Info.Config.Name}");
+
+
+
 
 /****************************************************************************************************************/
 
@@ -125,7 +173,11 @@ var isStreamDeleted = await stream1.DeleteAsync();
 //  C O N S U M E R S
 //
 
+
+// CREATE CONSUMER
+
 var consumer1 = await js.CreateConsumerAsync("stream1", "consumer1");
+
 consumer1 = await js.CreateConsumerAsync(new ConsumerCreateRequest
 {
     StreamName = "stream1",
@@ -137,10 +189,42 @@ consumer1 = await js.CreateConsumerAsync(new ConsumerCreateRequest
     },
 });
 
-await foreach (var consumer in js.ListConsumersAsync("stream1", new ConsumerListRequest { Offset = 0 }))
+
+
+
+
+
+
+
+
+// LIST CONSUMERS
+
+var list = await js.ListConsumersAsync("stream1", new ConsumerListRequest { Offset = 0 });
+
+foreach (var consumer in list.Consumers)
 {
-    Console.WriteLine($"Consumer: {consumer.Info.Name}");
+    Console.WriteLine($"Consumer: {consumer.Name}");
 }
+
+Console.WriteLine($$"""
+                   List:
+                   Offset: {{ list.Offset }}
+                   Limit: {{ list.Limit }}
+                   Total: {{ list.Total }}
+                   """);
+
+
+
+
+
+
+
+
+
+
+
+
+// GET CONSUMER
 
 consumer1 = await js.GetConsumerAsync("stream1", "consumer1");
 
@@ -151,39 +235,148 @@ Console.WriteLine($$"""
                   Created: {{ consumer1.Info.Created }}
                   """);
 
-void ConsumerErrorHandler(NatsJSNotification notification)
-{
-    Console.WriteLine($"Error: {notification.Code} {notification.Description}");
-}
+
+
+
+
+// CONSUMING MESSAGES
+
 
 { // NEXT
+    
+    void ErrorHandler(INatsJSSubFetch consumer, NatsJSNotification notification)
+    {
+        Console.WriteLine($"Error: {notification.Code} {notification.Description}");
+    }
+    
     var next = await consumer1.NextAsync<TestData>(new NatsJSNextOpts
     {
-        ErrorHandler = ConsumerErrorHandler,
+        ErrorHandler = ErrorHandler,
         Expires = TimeSpan.FromSeconds(30),
     });
 
     if (next is { } msg)
     {
         Console.WriteLine($"{msg.Subject}: {msg.Data.Id}");
+        await msg.AckAsync();
     }
 }
 
+
+
+
+
 { // FETCH
-    var fetch = await consumer1.FetchAsync<TestData>(new NatsJSFetchOpts
+    
+    var opts = new NatsJSFetchOpts
     {
         MaxMsgs = 100,
-        ErrorHandler = ConsumerErrorHandler,
-    });
+        ErrorHandler = ErrorHandler,
+    };
+
+    var fetch = await consumer1.FetchAsync<TestData>(opts);
+    
     await foreach (var msg in fetch.Msgs.ReadAllAsync())
     {
         Console.WriteLine($"{msg.Subject}: {msg.Data.Id}");
+        await msg.AckAsync();
+        
+        // or
+        // await msg.NackAsync();
+        // await msg.AckProgressAsync();
+        // await msg.AckTerminateAsync();
     }
+
+    
+    void ErrorHandler(INatsJSSubFetch consumer, NatsJSNotification notification)
+    {
+        Console.WriteLine($"Error: {notification.Code} {notification.Description}");
+        consumer.Stop();
+    }
+    
+    
+    
+    // Alternative fetch all
+    await foreach (var msg in consumer1.FetchAllAsync<TestData>(opts))
+    {
+        Console.WriteLine($"{msg.Subject}: {msg.Data.Id}");
+        await msg.AckAsync();
+    }
+    
+    
 }
 
-{ // DELETE
-    var isConsumerdeleted = await consumer1.DeleteAsync();
+
+
+
+
+
+
+
+
+
+{ // CONSUME
+    
+    var opts = new NatsJSConsumeOpts
+    {
+        MaxMsgs = 100,
+        ThresholdMsgs = 75,
+        Expires = TimeSpan.FromMinutes(2),
+        ErrorHandler = ErrorHandler,
+    };
+    
+    var consume = await consumer1.ConsumeAsync<TestData>(opts);
+
+    await foreach (var msg in consume.Msgs.ReadAllAsync())
+    {
+        Console.WriteLine($"{msg.Subject}: {msg.Data.Id}");
+        await msg.AckAsync();
+    }
+
+
+    void ErrorHandler(INatsJSSubConsume consumer, NatsJSNotification notification)
+    {
+        Console.WriteLine($"Error: {notification.Code} {notification.Description}");
+        consumer.Stop();
+    }
+    
+    
+    
+    
+    // Alternative consume all using asynchronous enumerable
+    await foreach (var msg in consumer1.ConsumeAllAsync<TestData>(opts))
+    {
+        Console.WriteLine($"{msg.Subject}: {msg.Data.Id}");
+        await msg.AckAsync();
+    }
+    
+    
 }
+
+
+
+
+
+
+
+
+
+
+{ // DELETE
+    
+    var isConsumerDeleted = await consumer1.DeleteAsync();
+    
+    if (!isConsumerDeleted)
+        Console.WriteLine("Error deleting consumer");
+    
+}
+
+
+
+
+
+
+
 
 
 
@@ -209,12 +402,9 @@ Console.WriteLine($$"""
 
 ack.EnsureSuccess();
 
+/****************************************************************************************************************/
+
 public class TestData
 {
     public int Id { get; set; }
 }
-
-/****************************************************************************************************************/
-
-
-
