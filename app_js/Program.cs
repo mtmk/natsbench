@@ -11,27 +11,22 @@ using NATS.Client.JetStream.Models;
  
  
  
+ 
+ 
+                     J e t S t r e a m   . N E T   V 2   p r e v i e w  1
+
+    * Quick review of the API
+
+    * Missing features
+
+    * Questions and Suggestions
+ 
 
             
-              ██ ███████ ████████ ███████ ████████ ██████  ███████  █████  ███    ███ 
-              ██ ██         ██    ██         ██    ██   ██ ██      ██   ██ ████  ████ 
-              ██ █████      ██    ███████    ██    ██████  █████   ███████ ██ ████ ██ 
-         ██   ██ ██         ██         ██    ██    ██   ██ ██      ██   ██ ██  ██  ██ 
-          █████  ███████    ██    ███████    ██    ██   ██ ███████ ██   ██ ██      ██ 
-                                                                                      
-                        ███    ██ ███████ ████████              ██████       
-                        ████   ██ ██         ██                      ██      
-                        ██ ██  ██ █████      ██        ██    ██  █████       
-                        ██  ██ ██ ██         ██         ██  ██  ██           
-                     ██ ██   ████ ███████    ██          ████   ███████      
-                                                                                             
-                ██████  ██████  ███████ ██    ██ ██ ███████ ██     ██      ██                
-                ██   ██ ██   ██ ██      ██    ██ ██ ██      ██     ██     ███                
-                ██████  ██████  █████   ██    ██ ██ █████   ██  █  ██      ██                
-                ██      ██   ██ ██       ██  ██  ██ ██      ██ ███ ██      ██                
-                ██      ██   ██ ███████   ████   ██ ███████  ███ ███       ██                
                                                                                              
                                                                              
+
+
 
 
 
@@ -51,9 +46,29 @@ using NATS.Client.JetStream.Models;
 //  J E T S T R E A M   C O N T E X T
 //
 
-var nc = new NatsConnection();
+var nc = new NatsConnection(NatsOpts.Default with
+{
+    WaitUntilSent = false,
+});
 
-var js = new NatsJSContext(nc);
+var js = new NatsJSContext(nc, new NatsJSOpts(nc.Opts)
+{
+    // TODO: Remove MaxMsgs = 1000, // maybe confusing
+    
+    // TODO: Add domain option
+    
+    // timeout comes from connection
+    
+    ApiPrefix = "$JS.API",
+    InboxPrefix = "_INBOX",// Remove
+    
+    
+    AckOpts = new AckOpts
+    {
+        WaitUntilSent = false,
+    },
+});
+
 
 
 
@@ -125,6 +140,21 @@ Console.WriteLine($$"""
 // * List Streams
 // * Update Stream
     
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // CREATE STREAM
 
 var stream1 = await js.CreateStreamAsync("stream1", subjects: new[] { "stream1.*" });
@@ -136,15 +166,12 @@ stream1 = await js.CreateStreamAsync(new StreamConfiguration
     Retention = StreamConfigurationRetention.workqueue,
 });
 
-// * stream.Info;
-//
-// * stream.DeleteAsync();
-// * stream.UpdateAsync();
-//
-// * stream.CreateConsumerAsync();
-// * stream.DeleteConsumerAsync();
-// * stream.GetConsumerAsync();
-// * stream.ListConsumersAsync();
+
+
+
+
+
+
 
 
 
@@ -182,16 +209,13 @@ Console.WriteLine($$"""
 
 // LIST STREAMS
 {
-    var list = await js.ListStreamsAsync(new StreamListRequest { Subject = "stream1.*" });
+    await foreach (var stream in js.ListStreamsAsync())
+    {
+        Console.WriteLine($"Stream: {stream.Info.Config.Name}");
+    }
 
-    foreach (var stream in list.Streams)
-        Console.WriteLine($"Stream: {stream.Config.Name}");
-
-    Console.WriteLine($"Streams" +
-                      $" offset:{list.Offset}," +
-                      $" limit:{list.Limit}," +
-                      $" total:{list.Total}");
-
+    // Stream names API (later)
+    // Paging implementation (later)
 }
 
 
@@ -210,6 +234,7 @@ stream1 = await js.UpdateStreamAsync(new StreamUpdateRequest
 {
     Name = "stream1",
     MaxMsgs = 1_000_000,
+    
 });
 
 Console.WriteLine($"New stream max msgs: {stream1.Info.Config.MaxMsgs}");
@@ -231,12 +256,31 @@ Console.WriteLine($"New stream max msgs: {stream1.Info.Config.MaxMsgs}");
 
 // DELETE STREAM
 
-var isStreamDeleted = await stream1.DeleteAsync();
+var isStreamDeleted = await js.DeleteStreamAsync("stream1");
 
 if (!isStreamDeleted)
     Console.WriteLine($"Error deleting stream {stream1.Info.Config.Name}");
 
 
+
+
+
+
+
+
+
+/*******************************************************************************************/
+// Stream Interface
+//
+// * stream.Info;
+//
+// * stream.DeleteAsync();
+// * stream.UpdateAsync();
+//
+// * stream.CreateConsumerAsync();
+// * stream.DeleteConsumerAsync();
+// * stream.GetConsumerAsync();
+// * stream.ListConsumersAsync();
 
 
 
@@ -263,9 +307,21 @@ if (!isStreamDeleted)
 //
 
 // * Create Consumer
-// * Delete Consumer
 // * Get Consumer
 // * List Consumers
+// * Delete Consumer
+
+
+
+
+
+
+
+
+
+
+
+
 
 // CREATE CONSUMER
 
@@ -279,21 +335,25 @@ consumer1 = await js.CreateConsumerAsync(new ConsumerCreateRequest
         AckPolicy = ConsumerConfigurationAckPolicy.@explicit,
         DurableName = "consumer1",
         Name = "consumer1",
+        
     },
 });
 
-//
-// * consumer.Info;
-// * consumer.DeleteAsync();
-//
-// * consumer.NextAsync<>();
-//
-// * consumer.FetchAsync<>();
-// * consumer.FetchAllAsync<>();
-//
-// * consumer.ConsumeAsync<>();
-// * consumer.ConsumeAllAsync<>();
-//
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -306,20 +366,13 @@ consumer1 = await js.CreateConsumerAsync(new ConsumerCreateRequest
 
 // LIST CONSUMERS
 {
-    var list = await js.ListConsumersAsync("stream1", new ConsumerListRequest { Offset = 0 });
-
-    foreach (var consumer in list.Consumers)
+    await foreach (var consumer in js.ListConsumersAsync("stream1"))
     {
-        Console.WriteLine($"Consumer: {consumer.Name}");
+        Console.WriteLine($"Consumer: {consumer.Info.Name}");
     }
 
-    Console.WriteLine($$"""
-                        List:
-                            Offset: {{list.Offset}}
-                            Limit: {{list.Limit}}
-                            Total: {{list.Total}}
-                        """);
-
+    // Names
+    // Paging
 }
 
 
@@ -353,6 +406,14 @@ Console.WriteLine($$"""
 
 
 
+{ // DELETE
+    
+    var isConsumerDeleted = await consumer1.DeleteAsync();
+    
+    if (!isConsumerDeleted)
+        Console.WriteLine("Error deleting consumer");
+    
+}
 
 
 
@@ -361,15 +422,44 @@ Console.WriteLine($$"""
 
 
 
-// CONSUMING MESSAGES
+
+
+
+
+/*******************************************************************************************/
+// Consumer Interface
+//
+// * consumer.Info;
+// * consumer.DeleteAsync();
+//
+//
+// Consuming Messages:
+//
+// * consumer.NextAsync<>();
+//
+// * consumer.FetchAsync<>();
+// * consumer.FetchAllAsync<>();
+//
+// * consumer.ConsumeAsync<>();
+// * consumer.ConsumeAllAsync<>();
+//
+
+
+
+
+
+
+
+
 
 { // NEXT
-    
-    var next = await consumer1.NextAsync<Order>(new NatsJSNextOpts
+
+    var opts = new NatsJSNextOpts
     {
-        ErrorHandler = ErrorHandler,
         Expires = TimeSpan.FromSeconds(30),
-    });
+    };
+    
+    var next = await consumer1.NextAsync<Order>(opts);
 
     if (next is { } msg)
     {
@@ -380,6 +470,8 @@ Console.WriteLine($$"""
         // await msg.NackAsync();
         // await msg.AckProgressAsync();
         // await msg.AckTerminateAsync();
+        
+        // TODO: Nack with delay
     }
     
     void ErrorHandler(INatsJSFetch _, NatsJSNotification notification)
@@ -408,18 +500,29 @@ Console.WriteLine($$"""
         // MaxBytes = 1024, // Either bytes or msgs, throw exception otherwise
         Expires = TimeSpan.FromMinutes(1),
         IdleHeartbeat = TimeSpan.FromSeconds(10),
-        ErrorHandler = ErrorHandler,
+        // TODO: Remove ErrorHandler = ErrorHandler,
     };
 
     var fetch = await consumer1.FetchAsync<Order>(opts);
-    
-    await foreach (var msg in fetch.Msgs.ReadAllAsync())
-    {
-        Console.WriteLine($"{msg.Subject}: {msg.Data.OrderId}");
-        await msg.AckAsync();
-    }
 
+    try
+    {
+        await foreach (var msg in fetch.Msgs.ReadAllAsync())
+        {
+            Console.WriteLine($"{msg.Subject}: {msg.Data.OrderId}");
+            await msg.AckAsync(new AckOpts
+            {
+                WaitUntilSent = true,
+                // DoubleAck = true
+            });
+        }
+    }
+    catch (NatsJSProtocolException e)
+    {
+        Console.WriteLine(e.Message);
+    }
     
+    // TODO: 
     void ErrorHandler(INatsJSFetch consumer, NatsJSNotification notification)
     {
         Console.WriteLine($"Error: {notification.Code} {notification.Description}");
@@ -470,7 +573,6 @@ Console.WriteLine($$"""
         // ThresholdMsgs = 50,
         Expires = TimeSpan.FromMinutes(2),
         IdleHeartbeat = TimeSpan.FromSeconds(10),
-        ErrorHandler = ErrorHandler,
     };
     
     var consume = await consumer1.ConsumeAsync<Order>(opts);
@@ -482,6 +584,8 @@ Console.WriteLine($$"""
     }
 
 
+    // TODO: terminal state handling
+    // TODO: Notification enum
     void ErrorHandler(INatsJSConsume consumer, NatsJSNotification notification)
     {
         Console.WriteLine($"Error: {notification.Code} {notification.Description}");
@@ -525,25 +629,6 @@ Console.WriteLine($$"""
 
 
 
-{ // DELETE
-    
-    var isConsumerDeleted = await consumer1.DeleteAsync();
-    
-    if (!isConsumerDeleted)
-        Console.WriteLine("Error deleting consumer");
-    
-}
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -554,6 +639,7 @@ Console.WriteLine($$"""
 
 var ack = await js.PublishAsync("stream1.foo", new Order { OrderId = 1 });
 
+// TODO: message id / js pub opts
 ack = await js.PublishAsync("stream1.foo", new Order { OrderId = 2 }, new NatsPubOpts
 {
     Headers = new NatsHeaders { { "Nats-Msg-Id", "2" } },
@@ -591,8 +677,7 @@ ack.EnsureSuccess();
 
 
 /*******************************************************************************************/
-//
-//  FEATURES NOT IMPLEMENTED
+// FEATURES NOT IMPLEMENTED
 //
 // * Stream getting/deleting messages
 //     * getMsg(getMsgOpts)
@@ -605,13 +690,15 @@ ack.EnsureSuccess();
 //
 // * Consume drain()
 //
+// * Handling leader change
+//
 // * Double ACK
 //     * Publish (?)
 //     * Consume (?)
-//
 
 
 
+// Questions and Suggestions ?
 
 
 
