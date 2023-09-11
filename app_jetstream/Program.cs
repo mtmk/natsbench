@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.Extensions.Logging;
 using NATS.Client.Core;
 using NATS.Client.JetStream;
@@ -39,4 +39,3 @@ await foreach (var msg in consumer.FetchAllAsync<Order>(new NatsJSFetchOpts { Ma
 Console.WriteLine($"Done fetching.");
 
 record Order(int OrderId);
-
