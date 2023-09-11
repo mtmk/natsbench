@@ -102,6 +102,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NATS.Client.JetStream", "na
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NATS.Client.JetStream.Tests", "nats\nats.net.v2\tests\NATS.Client.JetStream.Tests\NATS.Client.JetStream.Tests.csproj", "{4BD602D0-4200-4F14-8B52-2835F1F34222}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "app_jetstream", "app_jetstream\app_jetstream.csproj", "{FC6848ED-44D1-40E4-A711-6BA109F04268}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -235,6 +237,10 @@ Global
 		{4BD602D0-4200-4F14-8B52-2835F1F34222}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4BD602D0-4200-4F14-8B52-2835F1F34222}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4BD602D0-4200-4F14-8B52-2835F1F34222}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FC6848ED-44D1-40E4-A711-6BA109F04268}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FC6848ED-44D1-40E4-A711-6BA109F04268}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FC6848ED-44D1-40E4-A711-6BA109F04268}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FC6848ED-44D1-40E4-A711-6BA109F04268}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{60BEF34F-572D-477F-943F-16B869FDE06B} = {B3CCFF33-B33D-45E4-AEE1-778D5A2347D1}
