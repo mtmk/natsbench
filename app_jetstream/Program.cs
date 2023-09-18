@@ -22,4 +22,3 @@ await foreach (var msg in consumer.ConsumeAllAsync<Order>())
 }
 
 record Order(int OrderId);
-
