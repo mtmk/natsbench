@@ -7,12 +7,12 @@ using NATS.Client.JetStream;
 await using var nats = new NatsConnection();
 var js = new NatsJSContext(nats);
 
-await js.CreateStreamAsync("orders", subjects: new []{"orders.>"});
+await js.CreateStreamAsync(stream: "ord", subjects: new []{"orders.>"});
 
 for (var i = 0; i < 10; i++)
     await js.PublishAsync($"orders.new.{i}", new Order(i));
 
-var consumer = await js.CreateConsumerAsync(stream: "orders", consumer: "order_processor");
+var consumer = await js.CreateConsumerAsync(stream: "ord", consumer: "proc");
 
 await foreach (var msg in consumer.ConsumeAllAsync<Order>())
 {
