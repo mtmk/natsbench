@@ -325,7 +325,7 @@ if (!isStreamDeleted)
 
 // CREATE CONSUMER
 
-var consumer1 = await js.CreateConsumerAsync("stream1", "consumer1");
+var consumer1 = await js.CreateConsumerAsync(stream: "stream1", consumer: "consumer1");
 
 consumer1 = await js.CreateConsumerAsync(new ConsumerCreateRequest
 {
@@ -637,10 +637,10 @@ Console.WriteLine($$"""
 //  P U B L I S H
 //
 
-var ack = await js.PublishAsync("stream1.foo", new Order { OrderId = 1 });
+var ack = await js.PublishAsync("stream1.foo", new Order(OrderId: 1));
 
 // TODO: message id / js pub opts
-ack = await js.PublishAsync("stream1.foo", new Order { OrderId = 2 }, new NatsPubOpts
+ack = await js.PublishAsync("stream1.foo", new Order(OrderId: 1), new NatsPubOpts
 {
     Headers = new NatsHeaders { { "Nats-Msg-Id", "2" } },
 });
@@ -706,7 +706,4 @@ ack.EnsureSuccess();
 
 
 
-public class Order
-{
-    public int OrderId { get; set; }
-}
+public record Order(int OrderId);
