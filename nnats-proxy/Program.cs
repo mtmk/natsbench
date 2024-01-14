@@ -13,7 +13,8 @@ public class Program
     {
         var proxyServerPort = 4222;
         var natsServerPort = 4333;
-        
+        var serverAddress = "127.0.0.1";
+
         var help = (Func<ProxyServer, string>)(
             s => $$"""
 
@@ -43,7 +44,7 @@ public class Program
         Console.WriteLine("Started nats-server");
 
         var server = new ProxyServer();
-        server.Start(proxyServerPort, natsServerPort);
+        server.Start(proxyServerPort, serverAddress, natsServerPort);
 
 
         Console.WriteLine();

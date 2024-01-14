@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using System.Xml;
 
 namespace nnats_proxy;
 
@@ -71,6 +72,11 @@ public class ProxyServer
 
     public void Print(string dir, string line, string ascii)
     {
+        // if (ascii.Length > 1024)
+        // {
+        //     ascii = $"{ascii.Substring(0, 1024)}...({ascii.Length})";
+        // }
+        
         try
         {
             if (JetStreamSummarization)
@@ -260,7 +266,7 @@ public class ProxyServer
 
     private int _client = 0;
     
-    static void RunTCPServer(ProxyServer proxyServer, ManualResetEventSlim started, IPAddress address, int proxyPort, int serverPort)
+    static void RunTCPServer(ProxyServer proxyServer, ManualResetEventSlim started, IPAddress address, int proxyPort, string serverAddress, int serverPort)
     {
         var tcpListener = new TcpListener(address, proxyPort);
 
@@ -282,7 +288,7 @@ public class ProxyServer
 
                 SetupSocket(clientTcpConnection.Client);
 
-                var serverTcpConnection = new TcpClient("127.0.0.1", serverPort);
+                var serverTcpConnection = new TcpClient(serverAddress, serverPort);
                 SetupSocket(serverTcpConnection.Client);
 
                 Console.WriteLine(
@@ -414,14 +420,14 @@ public class ProxyServer
         }
     }
 
-    public void Start(int port, int natsServerPort)
+    public void Start(int port, string serverAddress, int natsServerPort)
     {
         var started1 = new ManualResetEventSlim();
         var started2 = new ManualResetEventSlim();
-        Task.Run(() => RunTCPServer(this, started1, IPAddress.Loopback, port, natsServerPort));
+        Task.Run(() => RunTCPServer(this, started1, IPAddress.Loopback, port, serverAddress, natsServerPort));
         if (Socket.OSSupportsIPv6)
         {
-            Task.Run(() => RunTCPServer(this, started2, IPAddress.IPv6Loopback, port, natsServerPort));
+            Task.Run(() => RunTCPServer(this, started2, IPAddress.IPv6Loopback, port, serverAddress, natsServerPort));
             started2.Wait();
         }
         started1.Wait();
