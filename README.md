@@ -1,5 +1,8 @@
 # NATS Bench
 
+**May change randomly!**
+This is just a playground. Feel free to copy ideas but please do not depend on this repo.
+
 ## Core
 https://docs.nats.io/reference/reference-protocols/nats-protocol
 
