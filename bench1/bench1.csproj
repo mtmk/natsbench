@@ -11,8 +11,4 @@
       <PackageReference Include="BenchmarkDotNet" Version="0.13.5" />
     </ItemGroup>
 
-    <ItemGroup>
-      <ProjectReference Include="..\nats\nats.net.v2\src\NATS.Client.Core\NATS.Client.Core.csproj" />
-    </ItemGroup>
-
 </Project>
