@@ -1,4 +1,5 @@
 ﻿using System.Buffers;
+using System.Buffers.Binary;
 using System.IO.Pipelines;
 using System.Net.Sockets;
 using System.Text;
@@ -50,13 +51,13 @@ class NatsClient
                     Memory<byte> memory = _writer.GetMemory(minimumBufferSize);
                     try
                     {
-                        int bytesRead = await _socket.ReceiveAsync(memory, SocketFlags.None);
-                        if (bytesRead == 0)
+                        int read = await _socket.ReceiveAsync(memory, SocketFlags.None);
+                        if (read == 0)
                         {
                             break;
                         }
                         // Tell the PipeWriter how much was read from the Socket.
-                        _writer.Advance(bytesRead);
+                        _writer.Advance(read);
                     }
                     catch (Exception ex)
                     {
@@ -76,67 +77,38 @@ class NatsClient
                 // By completing PipeWriter, tell the PipeReader that there's no more data coming.
                 await _writer.CompleteAsync();
             }
-
         });
 
         Task.Run(async () =>
         {
-            var state = 1;
-            var size = 0;
-            var lineStr = String.Empty;
-            var sub = "SUB foo 1\r\n";
-            
             while (true)
             {
-                ReadResult result = await _reader.ReadAsync();
-                ReadOnlySequence<byte> buffer = result.Buffer;
-
-                if (state == 1 && TryReadLine(ref buffer, out ReadOnlySequence<byte> line))
-                {
-                    // Process the line.
-                    var cmd = ProcessLine(ref buffer, line, out lineStr);
-                    if (cmd == 1)
-                    {
-                        var memory = new ReadOnlyMemory<byte>(Encoding.ASCII.GetBytes("CONNECT {}\r\n"));
-                        while (memory.Length != 0)
-                        {
-                            var sent = await _socket.SendAsync(memory, SocketFlags.None, CancellationToken.None)
-                                .ConfigureAwait(false);
-                            memory = memory.Slice(sent);
-                        }
-                    }
-                    else if (cmd == 2)
-                    {
-                        var memory = new ReadOnlyMemory<byte>(Encoding.ASCII.GetBytes($"PONG\r\n{sub}"));
-                        sub = string.Empty;
-                        while (memory.Length != 0)
-                        {
-                            var sent = await _socket.SendAsync(memory, SocketFlags.None, CancellationToken.None)
-                                .ConfigureAwait(false);
-                            memory = memory.Slice(sent);
-                        }
-                    }
-                    else if (cmd == 3)
-                    {
-                        state = 2;
-                        size = int.Parse(Regex.Match(lineStr, @"(\d+)$").Groups[1].Value) + 2; // 2=CRLF
-                        Console.WriteLine($"MSG SIZE={size}");
-                    }
-                }
-                else if (state == 2 && TryReadPayload(ref buffer, out var payload, size))
-                {
-                    Console.WriteLine(Encoding.ASCII.GetString(payload));
-                    state = 1;
-                }
-
-                // Tell the PipeReader how much of the buffer has been consumed.
-                _reader.AdvanceTo(buffer.Start, buffer.End);
-
-                // Stop reading if there's no more data coming.
-                if (result.IsCompleted)
-                {
+                ReadResult result = await _reader.ReadAtLeastAsync(2);
+                
+                if (result.IsCanceled)
                     break;
+                
+                ReadOnlySequence<byte> buffer = result.Buffer;
+                SequencePosition consumed = buffer.Start;
+                
+                try
+                {
+                    var cmd = ReadCmd(ref buffer);
+                    
+                    if (cmd == CmdPre.INFO)
+                    {
+                        Console.WriteLine($"{DateTime.Now:HH:mm:ss} [RCV] INFO");
+                    }
+
+                    consumed = buffer.Start;
                 }
+                finally
+                {
+                    _reader.AdvanceTo(consumed);
+                }
+                
+                if (result.IsCompleted)
+                    break;
             }
 
             // Mark the PipeReader as complete.
@@ -144,6 +116,25 @@ class NatsClient
         });
         
         return this;
+    }
+
+    short ReadCmd(ref ReadOnlySequence<byte> buffer)
+    {
+        short cmd;
+        if (buffer.IsSingleSegment)
+        {
+            cmd = BinaryPrimitives.ReadInt16LittleEndian(buffer.First.Span);
+        }
+        else
+        {
+            Span<byte> b1 = stackalloc byte[2];
+            buffer.Slice(0, 2).CopyTo(b1);
+            cmd = BinaryPrimitives.ReadInt16LittleEndian(b1);
+        }
+        
+        buffer = buffer.Slice(0, 2);
+        
+        return cmd;
     }
 
     private int ProcessLine(ref ReadOnlySequence<byte> buffer, ReadOnlySequence<byte> line, out string lineStr)
@@ -215,4 +206,20 @@ class NatsClient
     {
         Console.WriteLine(exception);
     }
+}
+
+public static class CmdPre
+{
+    public const short OK = 20267;
+    public const short ERR = 17709;
+    public const short CONNECT = 20291;
+    public const short HMSG = 19784;
+    public const short HPUB = 20552;
+    public const short INFO = 20041;
+    public const short MSG = 21325;
+    public const short PING = 18768;
+    public const short PONG = 20304;
+    public const short PUB = 21840;
+    public const short SUB = 21843;
+    public const short UNSUB = 20053;
 }

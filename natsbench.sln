@@ -28,16 +28,11 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".", ".", "{A84A5100-74F8-436F-8927-A41E5FB5E5C1}"
 	ProjectSection(SolutionItems) = preProject
 		README.md = README.md
-		sync_nats.bat = sync_nats.bat
-		Directory.Build.props = Directory.Build.props
-		dump.patch = dump.patch
-		Dumper.cs = Dumper.cs
-		macos.patch = macos.patch
-		X.cs = X.cs
-		version.txt = version.txt
-		sync_alternats.bat = sync_alternats.bat
-		sync_nats_old.bat = sync_nats_old.bat
 	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "natsparser", "natsparser\natsparser.csproj", "{38998DC3-F0D4-4A0C-BA70-76B30EB37880}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "natsparser.test", "natsparser.test\natsparser.test.csproj", "{F6E9C5D6-3DD6-430A-BB76-385CBB1A3D87}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -64,6 +59,14 @@ Global
 		{9731805C-E2AC-49EF-9779-BCC8DB840173}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9731805C-E2AC-49EF-9779-BCC8DB840173}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9731805C-E2AC-49EF-9779-BCC8DB840173}.Release|Any CPU.Build.0 = Release|Any CPU
+		{38998DC3-F0D4-4A0C-BA70-76B30EB37880}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{38998DC3-F0D4-4A0C-BA70-76B30EB37880}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{38998DC3-F0D4-4A0C-BA70-76B30EB37880}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{38998DC3-F0D4-4A0C-BA70-76B30EB37880}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F6E9C5D6-3DD6-430A-BB76-385CBB1A3D87}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F6E9C5D6-3DD6-430A-BB76-385CBB1A3D87}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F6E9C5D6-3DD6-430A-BB76-385CBB1A3D87}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F6E9C5D6-3DD6-430A-BB76-385CBB1A3D87}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{60BEF34F-572D-477F-943F-16B869FDE06B} = {B3CCFF33-B33D-45E4-AEE1-778D5A2347D1}
