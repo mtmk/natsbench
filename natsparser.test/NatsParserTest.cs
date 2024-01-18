@@ -43,99 +43,25 @@ public class NatsParserTest(ITestOutputHelper Ouptput)
                 .ReadOnlySequence,
         };
 
+        var tokenizer = new NatsTokenizer();
         var parser = new NatsParser();
-
+        
         foreach (var sequence in sequences)
         {
             var buffer = sequence;
-            
-            while (true)
+
+            while (parser.TryRead(ref tokenizer, ref buffer))
             {
-                var result = parser.Read(ref buffer);
-
-                if (result == NatsParser.Result.ExamineMore)
+                Ouptput.WriteLine($"Command: {parser.Command}");
+                if (parser.Command == NatsTokenizer.Command.MSG)
                 {
-                    continue;
+                    Ouptput.WriteLine($"  subject: {parser.Subject.GetString()}");
+                    Ouptput.WriteLine($"  sid: {parser.Sid.GetString()}");
+                    Ouptput.WriteLine($"  reply-to: {parser.ReplyTo.GetString()}");
+                    Ouptput.WriteLine($"  Payload-Length: {parser.Payload.Length}");
+                    Ouptput.WriteLine($"  Payload: {parser.Payload.GetString()}");
                 }
-
-                if (result == NatsParser.Result.Done)
-                {
-                    if (parser.GetCommand() == NatsParser.Command.INFO)
-                    {
-                        var jsonReader = new Utf8JsonReader(parser.GetBufferToken());
-                        var json = JsonNode.Parse(ref jsonReader);
-
-                        Ouptput.WriteLine($"INFO {json}");
-                    }
-                    else if (parser.GetCommand() == NatsParser.Command.PING)
-                    {
-                        Ouptput.WriteLine($"PING");
-                    }
-                    else if (parser.GetCommand() == NatsParser.Command.PONG)
-                    {
-                        Ouptput.WriteLine($"PONG");
-                    }
-                    else if (parser.GetCommand() == NatsParser.Command.OK)
-                    {
-                        Ouptput.WriteLine($"+OK");
-                    }
-                    else if (parser.GetCommand() == NatsParser.Command.ERR)
-                    {
-                        var error = Encoding.ASCII.GetString(parser.GetBufferToken());
-                        Ouptput.WriteLine($"-ERR {error}");
-                    }
-                    else if (parser.GetCommand() == NatsParser.Command.MSG)
-                    {
-                        var error = Encoding.ASCII.GetString(parser.GetBufferToken());
-                        Ouptput.WriteLine($"-ERR {error}");
-                    }
-                    
-                    parser.Reset();
-                    continue;
-                }
-
-                if (result == NatsParser.Result.Token)
-                {
-                    if (parser.GetCommand() == NatsParser.Command.MSG)
-                    {
-                        if (parser.IsLastToken)
-                        {
-                            var length = parser.GetIntegerToken();
-                            Ouptput.WriteLine($"MSG length={length}");
-                            parser.StartReadSize(length);
-                            continue;
-                        }
-                        else
-                        {
-                            var token = Encoding.ASCII.GetString(parser.GetBufferToken());
-                            Ouptput.WriteLine($"MSG token={token}");
-                        }
-                    }
-                    
-                    if (parser.IsLastToken)
-                        parser.Reset();
-                    
-                    continue;
-                }
-
-                if (result == NatsParser.Result.Payload)
-                {
-                    var payload = Encoding.ASCII.GetString(parser.GetBufferToken());
-                    Ouptput.WriteLine($"MSG payload={payload}");
-                    parser.Reset();
-                    continue;
-                }
-                
-                if (result == NatsParser.Result.Error)
-                {
-                    Ouptput.WriteLine("ERROR");
-                    break;
-                }
-
-                if (result == NatsParser.Result.ReadMore)
-                {
-                    break;
-                }
+                parser.Reset();
             }
         }
     }
