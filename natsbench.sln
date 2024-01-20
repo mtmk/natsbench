@@ -36,7 +36,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "natsparser.test", "natspars
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "app_pipelines", "app_pipelines\app_pipelines.csproj", "{F91B82B2-1BB2-46D0-AA6A-0A9773230F8A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "natsparser.app", "natsparser.app\natsparser.app.csproj", "{0F821446-CF67-45D5-B601-F464BB258805}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "natsparser.excample", "natsparser.excample\natsparser.excample.csproj", "{0F821446-CF67-45D5-B601-F464BB258805}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
