@@ -20,7 +20,7 @@ C: PUB <subject> [reply-to] <#bytes>␍␊[payload]␍␊
 C: HPUB <subject> [reply-to] <#header-bytes> <#total-bytes>␍␊[headers]␍␊␍␊[payload]␍␊
 */
 
-public ref struct NatsTokenizer
+public struct NatsTokenizer
 {
     public enum Result : byte { ReadMore, ExamineMore, Done, Token, Payload, Error }
     
