@@ -16,7 +16,10 @@ tcpClient.Connect(Environment.GetEnvironmentVariable("NATS_URL") ?? "127.0.0.1",
 
 Console.WriteLine("tcp connect");
 
-var pipeRcv = new Pipe(new PipeOptions(useSynchronizationContext:false));
+var pipeRcv = new Pipe(new PipeOptions(
+    readerScheduler:PipeScheduler.Inline,
+    writerScheduler:PipeScheduler.Inline,
+    useSynchronizationContext:false));
 var readerRcv = pipeRcv.Reader;
 var writerRcv = pipeRcv.Writer;
 
