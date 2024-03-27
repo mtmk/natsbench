@@ -57,7 +57,7 @@ Task.Run(async () =>
         while (true)
         {
             var result = await readerRcv.ReadAsync();
-            var buffer = result.Buffer;
+            ReadOnlySequence<byte> buffer = result.Buffer;
             if (!buffer.IsEmpty)
             {
                 while (parser.TryRead(ref tokenizer, ref buffer))

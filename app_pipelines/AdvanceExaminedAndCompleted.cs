@@ -7,25 +7,36 @@ public class AdvanceExaminedAndCompleted
 {
     public async Task Run()
     {
-        const int unit = 1024;
+        const int unit = 1000;
 
         var pipe = new Pipe(new PipeOptions(
-            pauseWriterThreshold: unit * 64, // default 65536
-            resumeWriterThreshold: unit * 32, // default 65536 / 2
-            // minimumSegmentSize: unit * 4, // default 4096
+            pauseWriterThreshold: unit * 10, // default 65536
+            resumeWriterThreshold: unit * 5, // default 65536 / 2
+            minimumSegmentSize: unit * 1, // default 4096
             useSynchronizationContext: false));
         var reader = pipe.Reader;
         var writer = pipe.Writer;
 
         Console.WriteLine($"reader:{reader.GetType()}");
         
-        _ = Task.Run(async () =>
+        // _ = Task.Run(async () =>
+        // {
+        //     while (true)
+        //     {
+        //         writer.Write(new byte[unit * 16]);
+        //         var result = await writer.FlushAsync();
+        //         Console.WriteLine($"[WRITER] cancel:{result.IsCanceled} complete:{result.IsCompleted}");
+        //     }
+        // });
+
+        Task.Run(async () =>
         {
-            while (true)
+            for (var i = 0; ; i++)
             {
-                writer.Write(new byte[unit * 16]);
+                for (int j = 0; j < 100; j++)
+                    writer.Write(new byte[unit]);
                 var result = await writer.FlushAsync();
-                Console.WriteLine($"[WRITER] cancel:{result.IsCanceled} complete:{result.IsCompleted}");
+                Console.WriteLine($"[WRITER] {i} cancel:{result.IsCanceled} complete:{result.IsCompleted}");
             }
         });
 
@@ -33,9 +44,14 @@ public class AdvanceExaminedAndCompleted
         {
             await Task.Delay(1000);
             var result = await reader.ReadAsync();
-            var buffer = result.Buffer;
-            Console.WriteLine($"[READER] ({i}) complete:{result.IsCompleted} cancel:{result.IsCanceled} buffer:{buffer.Length}");
-            reader.AdvanceTo(buffer.Start, buffer.End);
+            ReadOnlySequence<byte> buffer = result.Buffer;
+            var count = 0;
+            foreach (var readOnlyMemory in buffer)
+            {
+                count++;
+            }
+            Console.WriteLine($"[READER] ({i}) count:{count} complete:{result.IsCompleted} cancel:{result.IsCanceled} buffer:{buffer.Length}");
+            reader.AdvanceTo(buffer.GetPosition(buffer.Length / 2));
         }
     }
 }
