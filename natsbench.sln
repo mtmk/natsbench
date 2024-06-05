@@ -38,6 +38,24 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "app_pipelines", "app_pipeli
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "natsparser.excample", "natsparser.excample\natsparser.excample.csproj", "{0F821446-CF67-45D5-B601-F464BB258805}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NATS.Client.Core", "..\nats.net.v2\src\NATS.Client.Core\NATS.Client.Core.csproj", "{93A9FD76-01E2-4BFC-B08F-4D7EB0344117}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NATS.Client.JetStream", "..\nats.net.v2\src\NATS.Client.JetStream\NATS.Client.JetStream.csproj", "{81033F60-80BD-409C-8918-B61F3C118E12}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NATS.Client.KeyValueStore", "..\nats.net.v2\src\NATS.Client.KeyValueStore\NATS.Client.KeyValueStore.csproj", "{6F20BBA0-C660-4DCE-995C-BCF742226905}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NATS.Client.ObjectStore", "..\nats.net.v2\src\NATS.Client.ObjectStore\NATS.Client.ObjectStore.csproj", "{10CEBDBC-00CE-490D-A89E-23B5028C47BB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NATS.Client.Serializers.Json", "..\nats.net.v2\src\NATS.Client.Serializers.Json\NATS.Client.Serializers.Json.csproj", "{BD3F3B75-9216-441D-AFCE-F19EBD1FDF06}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NATS.Client.Hosting", "..\nats.net.v2\src\NATS.Client.Hosting\NATS.Client.Hosting.csproj", "{96069478-29C0-4E7B-A9C1-AF718C7A32EC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NATS.Client.Services", "..\nats.net.v2\src\NATS.Client.Services\NATS.Client.Services.csproj", "{65E6EA74-0455-4D90-B630-14276BB70EE8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NATS.Extensions.Microsoft.DependencyInjection", "..\nats.net.v2\src\NATS.Extensions.Microsoft.DependencyInjection\NATS.Extensions.Microsoft.DependencyInjection.csproj", "{54DEA403-C0F7-479F-8E3A-49E70CE1F515}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NATS.Net", "..\nats.net.v2\src\NATS.Net\NATS.Net.csproj", "{0CF1DF50-E5D9-41D0-933F-70D6F77F8A3C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -79,6 +97,42 @@ Global
 		{0F821446-CF67-45D5-B601-F464BB258805}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0F821446-CF67-45D5-B601-F464BB258805}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0F821446-CF67-45D5-B601-F464BB258805}.Release|Any CPU.Build.0 = Release|Any CPU
+		{93A9FD76-01E2-4BFC-B08F-4D7EB0344117}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{93A9FD76-01E2-4BFC-B08F-4D7EB0344117}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{93A9FD76-01E2-4BFC-B08F-4D7EB0344117}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{93A9FD76-01E2-4BFC-B08F-4D7EB0344117}.Release|Any CPU.Build.0 = Release|Any CPU
+		{81033F60-80BD-409C-8918-B61F3C118E12}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{81033F60-80BD-409C-8918-B61F3C118E12}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{81033F60-80BD-409C-8918-B61F3C118E12}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{81033F60-80BD-409C-8918-B61F3C118E12}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6F20BBA0-C660-4DCE-995C-BCF742226905}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6F20BBA0-C660-4DCE-995C-BCF742226905}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6F20BBA0-C660-4DCE-995C-BCF742226905}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6F20BBA0-C660-4DCE-995C-BCF742226905}.Release|Any CPU.Build.0 = Release|Any CPU
+		{10CEBDBC-00CE-490D-A89E-23B5028C47BB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{10CEBDBC-00CE-490D-A89E-23B5028C47BB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{10CEBDBC-00CE-490D-A89E-23B5028C47BB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{10CEBDBC-00CE-490D-A89E-23B5028C47BB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BD3F3B75-9216-441D-AFCE-F19EBD1FDF06}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BD3F3B75-9216-441D-AFCE-F19EBD1FDF06}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BD3F3B75-9216-441D-AFCE-F19EBD1FDF06}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BD3F3B75-9216-441D-AFCE-F19EBD1FDF06}.Release|Any CPU.Build.0 = Release|Any CPU
+		{96069478-29C0-4E7B-A9C1-AF718C7A32EC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{96069478-29C0-4E7B-A9C1-AF718C7A32EC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{96069478-29C0-4E7B-A9C1-AF718C7A32EC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{96069478-29C0-4E7B-A9C1-AF718C7A32EC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{65E6EA74-0455-4D90-B630-14276BB70EE8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{65E6EA74-0455-4D90-B630-14276BB70EE8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{65E6EA74-0455-4D90-B630-14276BB70EE8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{65E6EA74-0455-4D90-B630-14276BB70EE8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{54DEA403-C0F7-479F-8E3A-49E70CE1F515}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{54DEA403-C0F7-479F-8E3A-49E70CE1F515}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{54DEA403-C0F7-479F-8E3A-49E70CE1F515}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{54DEA403-C0F7-479F-8E3A-49E70CE1F515}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0CF1DF50-E5D9-41D0-933F-70D6F77F8A3C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0CF1DF50-E5D9-41D0-933F-70D6F77F8A3C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0CF1DF50-E5D9-41D0-933F-70D6F77F8A3C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0CF1DF50-E5D9-41D0-933F-70D6F77F8A3C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{60BEF34F-572D-477F-943F-16B869FDE06B} = {B3CCFF33-B33D-45E4-AEE1-778D5A2347D1}
