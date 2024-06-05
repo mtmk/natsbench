@@ -9,10 +9,16 @@ namespace nnats_proxy;
 
 public class Program
 {
-    static void Main()
+    static void Main(string[] args)
     {
-        var proxyServerPort = 4222;
-        var natsServerPort = 4333;
+        if (args.Length != 2)
+        {
+            Console.WriteLine("Usage: nnats-proxy <nats-server-port> <proxy-server-port>");
+            return;
+        }
+
+        var natsServerPort = int.Parse(args[0]); //4333;
+        var proxyServerPort = int.Parse(args[1]); //4222;
         var serverAddress = "127.0.0.1";
 
         var help = (Func<ProxyServer, string>)(

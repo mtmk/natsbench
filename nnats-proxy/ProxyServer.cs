@@ -1,8 +1,10 @@
-﻿using System.Collections.Concurrent;
+﻿using System.Buffers;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Xml;
@@ -352,14 +354,25 @@ public class ProxyServer
             var line = sr.ReadLine();
             if (line == null) return false;
 
-            if (Regex.IsMatch(line, @"^(INFO|CONNECT|PING|PONG|UNSUB|SUB|\+OK|-ERR)"))
+            if (Regex.IsMatch(line, @"^(INFO|CONNECT|PING|PONG|UNSUB|SUB|RS|\+OK|-ERR)"))
             {
+                if (line.StartsWith("INFO"))
+                {
+                    var json = JsonNode.Parse(line.Substring(5));
+                    json["port"] = 9999;
+                    var bufferWriter = new SimpleBufferWriter();
+                    var jsonWriter = new Utf8JsonWriter(bufferWriter, new JsonWriterOptions { Indented = false });
+                    json.WriteTo(jsonWriter);
+                    jsonWriter.Flush();
+                    var jsonStr = Encoding.UTF8.GetString(bufferWriter.ToArray());
+                    Console.WriteLine($">>>>>>>>>>>INFO JSON: {jsonStr}");
+                }
                 proxyServer.WriteCtrl(sw, dir, line);
                 return true;
             }
 
 
-            var match = Regex.Match(line, @"^(?:PUB|HPUB|MSG|HMSG).*?(\d+)\s*$");
+            var match = Regex.Match(line, @"^(?:PUB|HPUB|MSG|HMSG|RMSG).*?(\d+)\s*$");
             if (match.Success)
             {
                 var size = int.Parse(match.Groups[1].Value);
@@ -431,5 +444,57 @@ public class ProxyServer
             started2.Wait();
         }
         started1.Wait();
+    }
+}
+
+public class SimpleBufferWriter : IBufferWriter<byte>
+{
+    private byte[] _buffer;
+    private int _position;
+
+    public SimpleBufferWriter(int initialCapacity = 256)
+    {
+        _buffer = new byte[initialCapacity];
+        _position = 0;
+    }
+
+    public void Advance(int count)
+    {
+        if (count < 0 || _position + count > _buffer.Length)
+        {
+            throw new ArgumentOutOfRangeException(nameof(count));
+        }
+        _position += count;
+    }
+
+    public Memory<byte> GetMemory(int sizeHint = 0)
+    {
+        EnsureCapacity(sizeHint);
+        return _buffer.AsMemory(_position);
+    }
+
+    public Span<byte> GetSpan(int sizeHint = 0)
+    {
+        EnsureCapacity(sizeHint);
+        return _buffer.AsSpan(_position);
+    }
+
+    private void EnsureCapacity(int sizeHint)
+    {
+        if (sizeHint < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(sizeHint));
+        }
+
+        if (_position + sizeHint > _buffer.Length)
+        {
+            int newSize = Math.Max(_buffer.Length * 2, _position + sizeHint);
+            Array.Resize(ref _buffer, newSize);
+        }
+    }
+
+    public byte[] ToArray()
+    {
+        return _buffer.AsSpan(0, _position).ToArray();
     }
 }
