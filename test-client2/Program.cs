@@ -49,8 +49,9 @@ var publisher = Task.Run(async () =>
                             cancellationToken: cts.Token);
                         ack.EnsureSuccess();
 
-                        await File.AppendAllTextAsync($"test_publish.txt",
-                            $"{DateTime.UtcNow:yyyy-MM-ddTHH:mm:ss.fff} [SND] ({i})\n", cts.Token);
+                        var contents = $"{DateTime.UtcNow:yyyy-MM-ddTHH:mm:ss.fff} [SND] ({i})\n";
+                        Console.Write(contents);
+                        await File.AppendAllTextAsync($"test_publish.txt", contents, cts.Token);
 
                         break;
                     }
@@ -107,8 +108,10 @@ try
     var count = 0;
     await foreach (var msg in consumer.ConsumeAsync<string>(cancellationToken: cts.Token))
     {
-        await File.AppendAllTextAsync($"test_consume.txt",
-            $"{DateTime.UtcNow:yyyy-MM-ddTHH:mm:ss.fff} [RCV] ({count}) {msg.Subject}: {msg.Data}\n", cts.Token);
+        var contents = $"{DateTime.UtcNow:yyyy-MM-ddTHH:mm:ss.fff} [RCV] ({count}) {msg.Subject}: {msg.Data}\n";
+        Console.Write(contents);
+        await File.AppendAllTextAsync($"test_consume.txt", contents, cts.Token);
+        
         await msg.AckAsync(cancellationToken: cts.Token);
         count++;
     }

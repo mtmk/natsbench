@@ -60,8 +60,9 @@ var publisher = Task.Run(async () =>
                             cancellationToken: cts.Token);
                         ack.EnsureSuccess();
 
-                        await File.AppendAllTextAsync($"test_publish.txt",
-                            $"{DateTime.UtcNow:yyyy-MM-ddTHH:mm:ss.fff} [SND] ({i})\n", cts.Token);
+                        var message = $"{DateTime.UtcNow:yyyy-MM-ddTHH:mm:ss.fff} [SND] ({i})\n";
+                        Console.WriteLine(message);
+                        await File.AppendAllTextAsync($"test_publish.txt", message, cts.Token);
 
                         break;
                     }
@@ -113,8 +114,9 @@ try
         if (count != msg.Data)
             throw new Exception($"Unordered {count} != {msg.Data}");
 
-        await File.AppendAllTextAsync($"test_consume.txt",
-            $"{DateTime.UtcNow:yyyy-MM-ddTHH:mm:ss.fff} [RCV] ({count}) {msg.Subject}: {msg.Data}\n", cts.Token);
+        var message = $"{DateTime.UtcNow:yyyy-MM-ddTHH:mm:ss.fff} [RCV] ({count}) {msg.Subject}: {msg.Data}\n";
+        Console.WriteLine(message);
+        await File.AppendAllTextAsync($"test_consume.txt", message, cts.Token);
         await msg.AckAsync(cancellationToken: cts.Token);
         count++;
     }
