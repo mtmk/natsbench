@@ -9,7 +9,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\nats.net.v2\src\NATS.Net\NATS.Net.csproj" />
+        <ProjectReference Include="..\..\nats.net\src\NATS.Net\NATS.Net.csproj" />
     </ItemGroup>
 
     <ItemGroup>

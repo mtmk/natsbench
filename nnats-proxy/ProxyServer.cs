@@ -230,7 +230,8 @@ public class ProxyServer
         }
         else
         {
-            sw.WriteLine(line);
+            sw.Write(line);
+            sw.Write("\r\n");
             sw.Write(buffer);
             sw.Flush();
         }
@@ -244,7 +245,8 @@ public class ProxyServer
             Console.WriteLine($"{dir} {line}");
         }
 
-        sw.WriteLine(line);
+        sw.Write(line);
+        sw.Write("\r\n");
         sw.Flush();
     }
     
@@ -351,7 +353,7 @@ public class ProxyServer
     {
         try
         {
-            var line = sr.ReadLine();
+            var line = sr.ReadLine()?.TrimEnd();
             if (line == null) return false;
 
             if (Regex.IsMatch(line, @"^(INFO|CONNECT|PING|PONG|UNSUB|SUB|RS|\+OK|-ERR)"))
