@@ -9,7 +9,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\nats.net\src\NATS.Net\NATS.Net.csproj" />
+<!--        <ProjectReference Include="..\..\nats.net\src\NATS.Net\NATS.Net.csproj" />-->
+        <PackageReference Include="nats.net" Version="2.4.0-preview.3" />
     </ItemGroup>
 
     <ItemGroup>

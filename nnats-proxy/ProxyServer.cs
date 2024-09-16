@@ -374,10 +374,11 @@ public class ProxyServer
             }
 
 
-            var match = Regex.Match(line, @"^(?:PUB|HPUB|MSG|HMSG|RMSG).*?(\d+)\s*$");
+            var match = Regex.Match(line, @"^(?:PUB|HPUB|MSG|HMSG|RMSG).*?(\S+)\s*(\d+)\s*$");
             if (match.Success)
             {
-                var size = int.Parse(match.Groups[1].Value);
+                var token1 = match.Groups[1].Value;
+                var size = int.Parse(match.Groups[2].Value);
                 var buffer = new char[size + 2];
                 var span = buffer.AsSpan();
                 while (true)
@@ -388,9 +389,21 @@ public class ProxyServer
                     span = span[read..];
                 }
 
+                var headerSize = 0;
+                if (line.StartsWith("H"))
+                {
+                    headerSize = int.Parse(token1);
+                }
+
+                var index = 0;
                 var ascii = new StringBuilder();
                 foreach (var c in buffer.AsSpan()[..size])
                 {
+                    if (index < headerSize)
+                    {
+                        ascii.Append(c);
+                        continue;
+                    }
                     switch (c)
                     {
                         case > ' ' and <= '~':
@@ -413,6 +426,8 @@ public class ProxyServer
                             // sb.Append(Convert.ToString(c, 16));
                             break;
                     }
+
+                    index++;
                 }
 
                 proxyServer.Write(sw, dir, line, buffer, ascii.ToString());
