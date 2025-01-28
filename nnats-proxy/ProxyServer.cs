@@ -11,6 +11,8 @@ namespace nnats_proxy;
 
 public class ProxyServer
 {
+    public enum EncoderType { Nats, Ws }
+    
     public class AtomicBool
     {
         private int _i;
@@ -292,7 +294,7 @@ public class ProxyServer
 
     private int _client = 0;
     
-    static void RunTCPServer(ProxyServer proxyServer, ManualResetEventSlim started, IPAddress address, int proxyPort, IPAddress serverAddress, int serverPort)
+    static void RunTCPServer(EncoderType encoderType, ProxyServer proxyServer, ManualResetEventSlim started, IPAddress address, int proxyPort, IPAddress serverAddress, int serverPort)
     {
         var tcpListener = new TcpListener(address, proxyPort);
 
@@ -303,8 +305,19 @@ public class ProxyServer
         Console.WriteLine($"Proxy is listening on {tcpListener.LocalEndpoint}");
         started.Set();
 
-        var dumper = NatsProtoDump;
-        // var dumper = WsNatsProtoDump;
+        Func<char, Dictionary<string, object>, ProxyServer, string, StreamReader, StreamWriter, bool> dumper;
+        if (encoderType == EncoderType.Nats)
+        {
+            dumper = NatsProtoDump;
+        }
+        else if (encoderType == EncoderType.Ws)
+        {
+            dumper = WsNatsProtoDump;
+        }
+        else
+        {
+            throw new Exception("Unknown encoder type");
+        }
         
         while (true)
         {
@@ -549,6 +562,8 @@ public class ProxyServer
             var isMasked = (headerBuffer[1] & 0b10000000) != 0;
             var payloadLength = headerBuffer[1] & 0b01111111;
 
+            
+            
             var extendedPayloadLength = Array.Empty<byte>();
             if (payloadLength == 126)
             {
@@ -650,18 +665,18 @@ public class ProxyServer
         return hexDumpString;
     }
 
-    public void Start(string proxyAddress, string serverAddress)
+    public void Start(EncoderType encoderType, string proxyAddress, string serverAddress)
     {
         var proxy = ParseIpv4(proxyAddress);
         var server = ParseIpv4(serverAddress);
 
         var started1 = new ManualResetEventSlim();
         var started2 = new ManualResetEventSlim();
-        Task.Run(() => RunTCPServer(this, started1, proxy.Address, proxy.Port, server.Address, server.Port));
+        Task.Run(() => RunTCPServer(encoderType, this, started1, proxy.Address, proxy.Port, server.Address, server.Port));
         if (Equals(proxy.Address, IPAddress.Loopback) && Socket.OSSupportsIPv6)
         {
             // this is a hack to get the 'localhost' to work which resolves to IPv6 loopback at least on my machine 
-            Task.Run(() => RunTCPServer(this, started2, IPAddress.IPv6Loopback, proxy.Port, server.Address, server.Port));
+            Task.Run(() => RunTCPServer(encoderType, this, started2, IPAddress.IPv6Loopback, proxy.Port, server.Address, server.Port));
             started2.Wait();
         }
         started1.Wait();

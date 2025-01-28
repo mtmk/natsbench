@@ -13,10 +13,10 @@ public class Program
     {
         void DisplayUsageMessage()
         {
-            Console.WriteLine("Usage: nnats-proxy -s <nats-server-address> -p <proxy-server-listen-address>");
+            Console.WriteLine("Usage: nnats-proxy -e [nats|ws] -s <nats-server-address> -p <proxy-server-listen-address>");
         }
 
-        if (args.Length != 4)
+        if (args.Length != 6)
         {
             DisplayUsageMessage();
             return;
@@ -24,8 +24,9 @@ public class Program
 
         string? natsServerAddress = null;
         string? proxyServerAddress = null;
+        ProxyServer.EncoderType encoderType = ProxyServer.EncoderType.Nats;
         int state = 0;
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < 6; i++)
         {
             if (state == 0)
             {
@@ -36,6 +37,10 @@ public class Program
                 else if (args[i] == "-p")
                 {
                     state = 2;
+                }
+                else if (args[i] == "-e")
+                {
+                    state = 3;
                 }
                 else
                 {
@@ -51,6 +56,23 @@ public class Program
             else if (state == 2)
             {
                 proxyServerAddress = args[i];
+                state = 0;
+            }
+            else if (state == 3)
+            {
+                var encoderTypeStr = args[i];
+                if (encoderTypeStr == "nats")
+                {
+                    encoderType = ProxyServer.EncoderType.Nats;
+                }
+                else if (encoderTypeStr == "ws")
+                {
+                    encoderType = ProxyServer.EncoderType.Ws;
+                }
+                else
+                {
+                    DisplayUsageMessage();
+                }
                 state = 0;
             }
         }
@@ -90,7 +112,7 @@ public class Program
         Console.WriteLine("Started nats-server");
 
         var server = new ProxyServer();
-        server.Start(proxyServerAddress, natsServerAddress);
+        server.Start(encoderType, proxyServerAddress, natsServerAddress);
 
 
         Console.WriteLine();
