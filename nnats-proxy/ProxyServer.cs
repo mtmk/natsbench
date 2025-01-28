@@ -4,10 +4,8 @@ using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
-using System.Xml;
 
 namespace nnats_proxy;
 
@@ -127,8 +125,8 @@ public class ProxyServer
                     var stream = m1.Groups[1].Value;
                     var consumer = m1.Groups[2].Value;
                     var json = JsonNode.Parse(ascii);
-                    var batch = json["batch"]?.GetValue<int>();
-                    var maxBytes = json["max_bytes"]?.GetValue<int>();
+                    var batch = json?["batch"]?.GetValue<int>();
+                    var maxBytes = json?["max_bytes"]?.GetValue<int>();
                     js = $"[C] NXT {stream}/{consumer} batch:{batch} max_bytes:{maxBytes}";
                 }
                 else if (
@@ -185,7 +183,7 @@ public class ProxyServer
                     //{"type":"io.nats.jetstream.api.v1.consumer_info_response",...
                     var type = m1.Groups[1].Value;
                     var json = JsonNode.Parse(ascii);
-                    var error = json["error"]?.ToString();
+                    var error = json?["error"]?.ToString();
                     js = $"[C] API Response {type} {error}";
                 }
                 else if ((m1 = Regex.Match(line, @"^PUB \$JS\.API\.(\S+)")).Success)
@@ -270,7 +268,7 @@ public class ProxyServer
 
     private int _client = 0;
     
-    static void RunTCPServer(ProxyServer proxyServer, ManualResetEventSlim started, IPAddress address, int proxyPort, string serverAddress, int serverPort)
+    static void RunTCPServer(ProxyServer proxyServer, ManualResetEventSlim started, IPAddress address, int proxyPort, IPAddress serverAddress, int serverPort)
     {
         var tcpListener = new TcpListener(address, proxyPort);
 
@@ -292,7 +290,7 @@ public class ProxyServer
 
                 SetupSocket(clientTcpConnection.Client);
 
-                var serverTcpConnection = new TcpClient(serverAddress, serverPort);
+                var serverTcpConnection = new TcpClient(serverAddress.ToString(), serverPort);
                 SetupSocket(serverTcpConnection.Client);
 
                 Console.WriteLine(
@@ -358,17 +356,19 @@ public class ProxyServer
 
             if (Regex.IsMatch(line, @"^(INFO|CONNECT|PING|PONG|UNSUB|SUB|RS|\+OK|-ERR)"))
             {
-                if (line.StartsWith("INFO"))
-                {
-                    var json = JsonNode.Parse(line.Substring(5));
-                    json["port"] = 9999;
-                    var bufferWriter = new SimpleBufferWriter();
-                    var jsonWriter = new Utf8JsonWriter(bufferWriter, new JsonWriterOptions { Indented = false });
-                    json.WriteTo(jsonWriter);
-                    jsonWriter.Flush();
-                    var jsonStr = Encoding.UTF8.GetString(bufferWriter.ToArray());
-                    Console.WriteLine($">>>>>>>>>>>INFO JSON: {jsonStr}");
-                }
+                // TODO: port manipulation
+                // if (line.StartsWith("INFO"))
+                // {
+                //     var json = JsonNode.Parse(line.Substring(5));
+                //     
+                //     json["port"] = 9999;
+                //     var bufferWriter = new SimpleBufferWriter();
+                //     var jsonWriter = new Utf8JsonWriter(bufferWriter, new JsonWriterOptions { Indented = false });
+                //     json.WriteTo(jsonWriter);
+                //     jsonWriter.Flush();
+                //     var jsonStr = Encoding.UTF8.GetString(bufferWriter.ToArray());
+                //     Console.WriteLine($">>>>>>>>>>>INFO JSON: {jsonStr}");
+                // }
                 proxyServer.WriteCtrl(sw, dir, line);
                 return true;
             }
@@ -450,17 +450,42 @@ public class ProxyServer
         }
     }
 
-    public void Start(int port, string serverAddress, int natsServerPort)
+    public void Start(string proxyAddress, string serverAddress)
     {
+        var proxy = ParseIpv4(proxyAddress);
+        var server = ParseIpv4(serverAddress);
+
         var started1 = new ManualResetEventSlim();
         var started2 = new ManualResetEventSlim();
-        Task.Run(() => RunTCPServer(this, started1, IPAddress.Loopback, port, serverAddress, natsServerPort));
-        if (Socket.OSSupportsIPv6)
+        Task.Run(() => RunTCPServer(this, started1, proxy.Address, proxy.Port, server.Address, server.Port));
+        if (Equals(proxy.Address, IPAddress.Loopback) && Socket.OSSupportsIPv6)
         {
-            Task.Run(() => RunTCPServer(this, started2, IPAddress.IPv6Loopback, port, serverAddress, natsServerPort));
+            // this is a hack to get the 'localhost' to work which resolves to IPv6 loopback at least on my machine 
+            Task.Run(() => RunTCPServer(this, started2, IPAddress.IPv6Loopback, proxy.Port, server.Address, server.Port));
             started2.Wait();
         }
         started1.Wait();
+    }
+
+    private IPEndPoint ParseIpv4(string address)
+    {
+        if (string.IsNullOrWhiteSpace(address))
+        {
+            throw new ArgumentException("Address is empty");
+        }
+        
+        var parts = address.Split(':');
+        if (parts.Length == 1)
+        {
+            return new IPEndPoint(IPAddress.Loopback, int.Parse(parts[1]));
+        }
+
+        if (parts.Length == 2)
+        {
+            return new IPEndPoint(IPAddress.Parse(parts[0]), int.Parse(parts[1]));
+        }
+
+        throw new ArgumentException("Invalid address format");
     }
 }
 

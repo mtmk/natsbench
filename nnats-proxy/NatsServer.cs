@@ -4,7 +4,7 @@ namespace nnats_proxy;
 
 public class NatsServer : IDisposable
 {
-    private Process _process;
+    private Process? _process;
 
     public NatsServer Start(int port)
     {
@@ -47,6 +47,6 @@ public class NatsServer : IDisposable
 
     public void Dispose()
     {
-        _process.Dispose();
+        _process?.Dispose();
     }
 }

@@ -11,15 +11,55 @@ public class Program
 {
     static void Main(string[] args)
     {
-        if (args.Length != 2)
+        void DisplayUsageMessage()
         {
-            Console.WriteLine("Usage: nnats-proxy <nats-server-port> <proxy-server-port>");
+            Console.WriteLine("Usage: nnats-proxy -s <nats-server-address> -p <proxy-server-listen-address>");
+        }
+
+        if (args.Length != 4)
+        {
+            DisplayUsageMessage();
             return;
         }
 
-        var natsServerPort = int.Parse(args[0]); //4333;
-        var proxyServerPort = int.Parse(args[1]); //4222;
-        var serverAddress = "127.0.0.1";
+        string? natsServerAddress = null;
+        string? proxyServerAddress = null;
+        int state = 0;
+        for (int i = 0; i < 4; i++)
+        {
+            if (state == 0)
+            {
+                if (args[i] == "-s")
+                {
+                    state = 1;
+                }
+                else if (args[i] == "-p")
+                {
+                    state = 2;
+                }
+                else
+                {
+                    DisplayUsageMessage();
+                    return;
+                }
+            }
+            else if (state == 1)
+            {
+                natsServerAddress = args[i];
+                state = 0;
+            }
+            else if (state == 2)
+            {
+                proxyServerAddress = args[i];
+                state = 0;
+            }
+        }
+        
+        if (natsServerAddress == null || proxyServerAddress == null)
+        {
+            DisplayUsageMessage();
+            return;
+        }
 
         var help = (Func<ProxyServer, string>)(
             s => $$"""
@@ -50,7 +90,7 @@ public class Program
         Console.WriteLine("Started nats-server");
 
         var server = new ProxyServer();
-        server.Start(proxyServerPort, serverAddress, natsServerPort);
+        server.Start(proxyServerAddress, natsServerAddress);
 
 
         Console.WriteLine();
@@ -67,6 +107,10 @@ public class Program
             }
             
             var cmd = Console.ReadLine();
+            if (cmd == null)
+            {
+                break;
+            }
             
             // Reset prompt if less than 700ms so we can
             // create some space.
