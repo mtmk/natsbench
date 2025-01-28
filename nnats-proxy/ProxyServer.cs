@@ -218,7 +218,7 @@ public class ProxyServer
         }
     }
 
-    public void Write(TextWriter sw, string dir, string line, char[] buffer, string ascii)
+    public void Write(TextWriter sw, string dir, string line, ReadOnlySpan<char> buffer, string ascii)
     {
         Print(dir, line, ascii);
         if (SuppressHeartbeats && Regex.IsMatch(ascii, @"100 Idle Heartbeat"))
@@ -233,6 +233,30 @@ public class ProxyServer
             sw.Write(buffer);
             sw.Flush();
         }
+    }
+    
+    public void PrintBin(string dir, string line, string ascii)
+    {
+        try
+        {
+            Console.WriteLine($"{DateTime.Now:HH:mm:ss.fff} {dir} {line}\n{ascii}\n");
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"");
+            Console.WriteLine($"Print error :{e.Message}");
+            Console.WriteLine($"  dir:{dir}");
+            Console.WriteLine($"  line:{line}");
+            Console.WriteLine($"  buffer:{ascii}");
+            Console.WriteLine($"");
+        }
+    }
+    
+    public void WriteBin(StreamWriter sw, string dir, string line, ReadOnlySpan<char> buffer, string ascii)
+    {
+        PrintBin(dir, line, ascii);
+        sw.Write(buffer);
+        sw.Flush();
     }
 
     public void WriteCtrl(TextWriter sw, string dir, string line)
@@ -278,6 +302,9 @@ public class ProxyServer
 
         Console.WriteLine($"Proxy is listening on {tcpListener.LocalEndpoint}");
         started.Set();
+
+        var dumper = NatsProtoDump;
+        // var dumper = WsNatsProtoDump;
         
         while (true)
         {
@@ -302,19 +329,20 @@ public class ProxyServer
                     try
                     {
                         var clientStream = clientTcpConnection.GetStream();
-                        var csr = new StreamReader(clientStream, Encoding.ASCII);
-                        var csw = new StreamWriter(clientStream, Encoding.ASCII);
+                        var csr = new StreamReader(clientStream, Encoding.Latin1);
+                        var csw = new StreamWriter(clientStream, Encoding.Latin1);
 
                         var serverStream = serverTcpConnection.GetStream();
-                        var ssr = new StreamReader(serverStream, Encoding.ASCII);
-                        var ssw = new StreamWriter(serverStream, Encoding.ASCII);
+                        var ssr = new StreamReader(serverStream, Encoding.Latin1);
+                        var ssw = new StreamWriter(serverStream, Encoding.Latin1);
 
+                        var state = new Dictionary<string, object>();
                         Task.Run(() =>
                         {
                             try
                             {
                                 // Client -> Server
-                                while (NatsProtoDump(proxyServer, $"[{n}] -->", csr, ssw))
+                                while (dumper('C', state, proxyServer, $"[{n}] C-->S", csr, ssw))
                                 {
                                 }
 
@@ -327,7 +355,7 @@ public class ProxyServer
                         });
 
                         // Server -> client
-                        while (NatsProtoDump(proxyServer, $"[{n}] <--", ssr, csw))
+                        while (dumper('S', state, proxyServer, $"[{n}] C<--S", ssr, csw))
                         {
                         }
 
@@ -347,7 +375,7 @@ public class ProxyServer
         }
     }
 
-    static bool NatsProtoDump(ProxyServer proxyServer, string dir, StreamReader sr, StreamWriter sw)
+    static bool NatsProtoDump(char orig, Dictionary<string, object> state, ProxyServer proxyServer, string dir, StreamReader sr, StreamWriter sw)
     {
         try
         {
@@ -448,6 +476,178 @@ public class ProxyServer
             Console.WriteLine($"{dir} {e.GetType()}: {e.Message}");
             return false;
         }
+    }
+
+    class WsState
+    {
+        public bool Http = true;
+    }
+    
+    static bool WsNatsProtoDump(char orig, Dictionary<string, object> state, ProxyServer proxyServer, string dir, StreamReader sr, StreamWriter sw)
+    {
+        var stateKey = $"proto-state-{orig}";
+        object stateObject;
+        lock (state)
+        {
+            if (!state.TryGetValue(stateKey, out stateObject))
+            {
+                state[stateKey] = stateObject = new WsState();
+            }
+        }
+        var wsState = (WsState)stateObject;
+        
+        try
+        {
+            if (wsState.Http)
+            {
+                var http = new StringBuilder();
+                var httpAscii = new StringBuilder();
+                while (true)
+                {
+                    var line = sr.ReadLine();
+                    if (line == null) return false;
+                    http.Append(line + "\r\n");
+                    httpAscii.Append("  ");
+                    httpAscii.AppendLine(line);
+                    if (line == string.Empty) break;
+                }
+
+                proxyServer.WriteBin(sw, dir, "http", http.ToString(), httpAscii.ToString());
+                wsState.Http = false;
+                return true;
+            }
+
+            static byte[] ReadAsBytes(List<char> buffers, StreamReader reader, int length)
+            {
+                var charBuffer = new char[length];
+                var byteBuffer = new byte[length];
+                
+                var totalBytesRead = 0;
+                while (totalBytesRead < length)
+                {
+                    var currentBytesRead = reader.Read(charBuffer, totalBytesRead, length - totalBytesRead);
+                    if (currentBytesRead == 0) throw new IOException("Unexpected end of stream");
+                    totalBytesRead += currentBytesRead;
+                }
+
+                // Convert characters to bytes
+                for (var i = 0; i < length; i++)
+                {
+                    byteBuffer[i] = (byte)charBuffer[i];
+                }
+                
+                buffers.AddRange(charBuffer);
+                return byteBuffer;
+            }
+            
+            // Websocket frame
+            List<char> frame = new();
+            var headerBuffer = ReadAsBytes(frame, sr, 2);
+
+            var fin = (headerBuffer[0] & 0b10000000) != 0;
+            var opcode = headerBuffer[0] & 0b00001111;
+            var isMasked = (headerBuffer[1] & 0b10000000) != 0;
+            var payloadLength = headerBuffer[1] & 0b01111111;
+
+            var extendedPayloadLength = Array.Empty<byte>();
+            if (payloadLength == 126)
+            {
+                extendedPayloadLength = ReadAsBytes(frame, sr, 2);
+                payloadLength = BitConverter.ToUInt16(extendedPayloadLength.Reverse().ToArray(), 0);
+            }
+            else if (payloadLength == 127)
+            {
+                extendedPayloadLength = ReadAsBytes(frame, sr, 8);
+                payloadLength = (int)BitConverter.ToUInt64(extendedPayloadLength.Reverse().ToArray(), 0);
+            }
+
+            byte[] maskingKey = null;
+            if (isMasked)
+            {
+                maskingKey = ReadAsBytes(frame, sr, 4);
+            }
+
+            var payloadData = ReadAsBytes(frame, sr, payloadLength);
+
+            if (isMasked && maskingKey != null)
+            {
+                for (int i = 0; i < payloadData.Length; i++)
+                {
+                    payloadData[i] = (byte)(payloadData[i] ^ maskingKey[i % 4]);
+                }
+            }
+
+            //var payloadText = Encoding.UTF8.GetString(payloadData);
+            //Console.WriteLine($"FIN: {fin}, Opcode: {opcode}, Payload: {payloadText}");
+            
+            var hexDumpString = HexDumpString(payloadData);
+
+            proxyServer.WriteBin(sw, dir, $"FIN: {fin}, Opcode: {opcode}, Masked: {isMasked}", frame.ToArray(), hexDumpString);
+
+            return true;
+
+            Console.WriteLine($"Error: Unknown protocol");
+
+            return false;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"{dir} {e.GetType()}: {e.Message}");
+            return false;
+        }
+    }
+
+    private static string HexDumpString(ReadOnlySpan<byte> span)
+    {
+        var ascii = new StringBuilder();
+        var hexDump = new StringBuilder();
+        var indent = true;
+        for (int i = 0; i < span.Length; i++)
+        {
+            if (indent)
+            {
+                hexDump.Append("  ");
+                indent = false;
+            }
+            
+            byte currentByte = (byte)span[i];
+            hexDump.AppendFormat("{0:X2} ", currentByte);
+
+            if (currentByte > 31 && currentByte < 127) // Printable ASCII range
+            {
+                ascii.Append((char)currentByte);
+            }
+            else
+            {
+                ascii.Append('.');
+            }
+
+            // Add a new line every 16 bytes for formatting
+            if ((i + 1) % 16 == 0)
+            {
+                hexDump.Append(" ");
+                hexDump.Append(ascii);
+                hexDump.AppendLine();
+                indent = true;
+                ascii.Clear();
+            }
+        }
+
+        // Append remaining bytes if total length wasn't a multiple of 16
+        if (span.Length % 16 != 0)
+        {
+            int padding = (16 - (span.Length % 16)) * 3;
+            hexDump.Append(' ', padding);
+            hexDump.Append(" ");
+            hexDump.Append(ascii);
+        }
+
+        var hexDumpString = hexDump.ToString();
+        return hexDumpString;
     }
 
     public void Start(string proxyAddress, string serverAddress)
