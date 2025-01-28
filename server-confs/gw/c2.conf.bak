@@ -1,0 +1,14 @@
+listen: 127.0.0.1:4333
+gateway {
+    name: "g2"
+    listen: "127.0.0.1:7333"
+    authorization {
+        user: gwu
+        password: gwp
+    }
+    gateways: [
+        {name: "g1", url: "nats://gwu:gwp@127.0.0.1:7222"},
+        {name: "g2", url: "nats://gwu:gwp@127.0.0.1:7333"},
+    ]
+}
+
