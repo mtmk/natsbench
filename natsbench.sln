@@ -64,6 +64,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "test-client2", "test-client
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "test-client3", "test-client3\test-client3.csproj", "{A5F863F8-8F55-472B-9CD9-88EB6CEF4F50}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "nn-proxy", "nn-proxy\nn-proxy.csproj", "{8B85C285-EEAD-42CC-8D28-0639B20788CA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -157,6 +159,10 @@ Global
 		{A5F863F8-8F55-472B-9CD9-88EB6CEF4F50}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A5F863F8-8F55-472B-9CD9-88EB6CEF4F50}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A5F863F8-8F55-472B-9CD9-88EB6CEF4F50}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8B85C285-EEAD-42CC-8D28-0639B20788CA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8B85C285-EEAD-42CC-8D28-0639B20788CA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8B85C285-EEAD-42CC-8D28-0639B20788CA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8B85C285-EEAD-42CC-8D28-0639B20788CA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{60BEF34F-572D-477F-943F-16B869FDE06B} = {B3CCFF33-B33D-45E4-AEE1-778D5A2347D1}
